@@ -2281,11 +2281,11 @@ ARGS are passed to the PROGRAM."
   (setq global-company-mode '(not erc-mode message-mode help-mode gud-mode))
 
   :custom
-  (company-idle-delay 0.2)
+  (company-idle-delay 0.1)
   ;; Easy navigation to candidates with M-<n>
   (company-show-numbers t)
   (company-require-match nil)
-  (company-minimum-prefix-length 3)
+  (company-minimum-prefix-length 2)
   (company-selection-wrap-around t)
   (company-tooltip-align-annotations t)
   (company-tooltip-flip-when-above t)
