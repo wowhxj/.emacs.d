@@ -1501,7 +1501,7 @@ otherwise use the subtree title."
                         ("ocaml"        . tuareg)
                         ("shell"        . sh)
                         ("html"         . browser)
-                        ("sqlite"       . sql)))
+                        ("mysql"        . sql)))
   (org-babel-load-languages '((awk             . t)
                               (C               . t)
                               (calc            . t)
@@ -1556,7 +1556,6 @@ otherwise use the subtree title."
         (setq-local lsp--buffer-uri (lsp--path-to-uri buffer-file-name))
         (lsp)
         (push 'company-lsp company-backends)
-        ;; (set (make-local-variable 'company-backends) '(company-lsp))
         ))
 
 (defun org-babel-edit-prep:ipython (babel-info)
@@ -1567,7 +1566,19 @@ otherwise use the subtree title."
         (setq-local lsp--buffer-uri (lsp--path-to-uri buffer-file-name))
         (lsp)
         (push 'company-lsp company-backends)
-        ;; (set (make-local-variable 'company-backends) '(company-lsp))
+        ))
+#+end_src
+*** Let sql src block work with lsp-mode
+#+begin_src emacs-lisp
+;; need to identify :file in python src block
+(defun org-babel-edit-prep:sql (babel-info)
+      "Prepare the local buffer environment for Org source block."
+      (let ((lsp-file (or (->> babel-info caddr (alist-get :file))
+                      buffer-file-name)))
+        (setq-local buffer-file-name lsp-file)
+        (setq-local lsp--buffer-uri (lsp--path-to-uri buffer-file-name))
+        (lsp)
+        (push 'company-lsp company-backends)
         ))
 #+end_src
 ** Capture settings.
@@ -1724,7 +1735,7 @@ otherwise use the subtree title."
           ("c" . "comment")
           ("v" . "verse")
           ("html" . "src html")
-          ("sql" . "src sql")
+          ("sql" . "src sql :results raw drawer :engine mysql :database midea_cs")
           ("exhtml" . "export html")
           ("exmd" . "export md")
           ("el" . "src emacs-lisp")
@@ -2668,7 +2679,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
           (insert eval-as-comment-prefix))))))
 #+end_src
 ** SQL mode
-SQL automatically uppercase:
+*** SQL automatically uppercase:
 #+begin_src emacs-lisp
 ;; automatically uppercase SQL keywords
 (use-package sqlup-mode
@@ -2678,6 +2689,50 @@ SQL automatically uppercase:
          )
   ;; :bind (:map sql-mode-map
   ;;        ("C-c u" . sqlup-capitalize-keywords-in-region))
+  )
+#+end_src
+*** SQL LSP support
+#+begin_src emacs-lisp
+(setq lsp-sqls-connections
+    '(((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/midea_cs"))))
+#+end_src
+*** Use ejc-sql as a MySQL client (abandoned)
+1. install dependency package =leiningen=
+#+begin_src shell
+brew install leiningen
+#+end_src
+2. ejc-sql settings
+#+begin_src emacs-lisp
+(use-package ejc-sql
+  ;; disable this package because we have lsp!!!
+  :disabled t
+  :hook ((sql-mode . (lambda ()
+                       (require 'ejc-company)
+                       (push 'ejc-company-backend company-backends)))
+         (ejc-result-mode . display-line-numbers-mode)
+         (ejc-sql-minor-mode . (lambda ()
+                                 (ejc-eldoc-setup)
+                                 ;; (font-lock-warn-todo)
+                                 ))
+         (ejc-sql-connected . (lambda ()
+                                ;; (ejc-set-fetch-size 99)         ; Limit for the number of records to output.
+                                ;; (ejc-set-max-rows 99)           ; Limit for the number of records in ResultSet.
+                                (ejc-set-show-too-many-rows-message t) ; Set output 'Too many rows' message.
+                                ;;(ejc-set-column-width-limit 25) ; Limit for outputing the number of chars per column.
+                                (ejc-set-use-unicode t)         ; Use unicode symbols for grid borders.
+                                )))
+  :init
+
+  :config
+  (setq nrepl-sync-request-timeout 60)
+  (setq clomacs-httpd-default-port 8090) ; Use a port other than 8080.
+  ;; Show results of SQL snippets evaluation in `org-mode'
+  ;; in dedicated buffer.
+  (setq ejc-org-mode-show-results nil)
+  (setq ejc-use-flx t)                          ; Enable `flx' fuzzy matching.
+  (setq ejc-result-table-impl 'ejc-result-mode) ; Set major-mode for results.
+  ;; store db info in my-ejc-connection file
+  (require 'my-ejc-connection nil 'noerror)
   )
 #+end_src
 ** Web mode
