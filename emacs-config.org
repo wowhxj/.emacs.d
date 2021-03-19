@@ -1,4 +1,5 @@
 #+TITLE: Emacs configuration
+#+author: Randolph Huang
 #+startup: overview
 
 * Startup Performance
@@ -168,6 +169,21 @@ Use the following keywords ordering for =use-package=:
                               (kill-buffer (process-buffer process))
                               (when (> (count-windows) 1)
                                 (delete-window)))))))
+
+(defun open-dashboard ()
+  "Open the *dashboard* buffer and jump to the first widget."
+  (interactive)
+  (if (get-buffer dashboard-buffer-name)
+      (kill-buffer dashboard-buffer-name))
+  (dashboard-insert-startupify-lists)
+  (switch-to-buffer dashboard-buffer-name)
+  (goto-char (point-min))
+  (delete-other-windows))
+
+(defun edit-configs ()
+  "Opens the README.org file."
+  (interactive)
+  (find-file "~/.emacs.d/emacs-config.org"))
 #+end_src
 * UI settings
 User interaction settings.
@@ -328,13 +344,18 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
 (dolist (mode '(text-mode-hook
                 prog-mode-hook
                 conf-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 1))))
+  (add-hook mode (lambda () (setq-local display-line-numbers-mode 1))))
 
-;; Override some modes which derive from the above
+;; when C-' to edit src code, show line numbers
+(add-hook 'org-src-mode-hook 'display-line-numbers-mode)
+;; when in org file, don't show line numbers
 (dolist (mode '(org-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+  (add-hook mode (lambda () (setq-local display-line-numbers-mode 0))))
 
-;; (setq debug-on-error t)
+;; page-break-lines
+(use-package page-break-lines
+  :ensure t
+  :hook (after-init . global-page-break-lines-mode))
 #+end_src
 ** Prettify symbols
 #+begin_src emacs-lisp
@@ -1041,7 +1062,14 @@ Other related settings makes ivy more beautiful.
   :ensure t
   :config
   ;; (load-theme 'apropospriate-light t)
-  (load-theme 'apropospriate-dark t))
+  ;; (load-theme 'apropospriate-dark t)
+  )
+
+(use-package solarized-theme
+  :ensure t
+  :config
+  ;; (load-theme 'apropospriate-light t)
+  (load-theme 'solarized-dark t))
 #+end_src
 * Dired settings
 ** Basic settings
@@ -1244,7 +1272,7 @@ Other related settings makes ivy more beautiful.
   (doom-modeline-minor-modes t)
   (doom-modeline-persp-name nil)
   (doom-modeline-buffer-file-name-style 'truncate-except-project)
-  (doom-modeline-major-mode-icon nil))
+  (doom-modeline-major-mode-color-icon t))
 #+end_src
 * Org mode settings
 ** Set the org block background to darker 3%.
@@ -2279,11 +2307,11 @@ ARGS are passed to the PROGRAM."
          ([remap completion-at-point] . company-complete)
          :map company-active-map
          ;; The spacemacs binding style
-         ("C-/"     . counsel-company)
+         ;; ("C-/"     . counsel-company)
          ("C-p"     . company-select-previous)
          ("C-n"     . company-select-next)
          ("C-s"     . company-filter-candidates)
-         ([tab]     . company-complete-common-or-cycle)
+         ([tab]     . smarter-tab-to-complete)
          ([backtab] . company-select-previous-or-abort)
          :map company-search-map
          ("C-p"    . company-select-previous)
@@ -2318,6 +2346,22 @@ ARGS are passed to the PROGRAM."
                       company-files
                       (company-dabbrev-code company-etags company-keywords)
                       company-dabbrev))
+  (defun smarter-tab-to-complete ()
+    "Try to `org-cycle', `yas-expand', and `yas-next-field' at current cursor position.
+
+If all failed, try to complete the common part with `company-complete-common'"
+    (interactive)
+    (if yas-minor-mode
+        (let ((old-point (point))
+              (old-tick (buffer-chars-modified-tick))
+              (func-list '(org-cycle yas-expand yas-next-field)))
+          (catch 'func-suceed
+            (dolist (func func-list)
+              (ignore-errors (call-interactively func))
+              (unless (and (eq old-point (point))
+                           (eq old-tick (buffer-chars-modified-tick)))
+                (throw 'func-suceed t)))
+            (company-complete-common)))))
   )
 #+end_src
 ** Quickhelp
@@ -2385,6 +2429,47 @@ Use company box frontend instead of quickhelp because ein has bug.
           (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))
           (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))
         company-box-icons-alist 'company-box-icons-all-the-icons))
+#+end_src
+** Company tabnine
+See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-install-binary= to download binaries first.
+#+begin_src emacs-lisp
+(use-package company-tabnine
+  :ensure t
+  :defer 1
+  :custom
+  (company-tabnine-max-num-results 9)
+  ;; :bind
+  ;; (("M-q" . company-other-backend)
+  ;;  ("C-z t" . company-tabnine))
+  :hook
+  (lsp-after-open . (lambda ()
+                      (setq company-tabnine-max-num-results 3)
+                      (add-to-list 'company-transformers 'company//sort-by-tabnine t)
+                      (add-to-list 'company-backends '(company-capf :with company-tabnine :separate))))
+  (kill-emacs . company-tabnine-kill-process)
+  :config
+  ;; Enable TabNine on default
+  (add-to-list 'company-backends #'company-tabnine)
+
+  ;; Integrate company-tabnine with lsp-mode
+  (defun company//sort-by-tabnine (candidates)
+    (if (or (functionp company-backend)
+            (not (and (listp company-backend) (memq 'company-tabnine company-backends))))
+        candidates
+      (let ((candidates-table (make-hash-table :test #'equal))
+            candidates-lsp
+            candidates-tabnine)
+        (dolist (candidate candidates)
+          (if (eq (get-text-property 0 'company-backend candidate)
+                  'company-tabnine)
+              (unless (gethash candidate candidates-table)
+                (push candidate candidates-tabnine))
+            (push candidate candidates-lsp)
+            (puthash candidate t candidates-table)))
+        (setq candidates-lsp (nreverse candidates-lsp))
+        (setq candidates-tabnine (nreverse candidates-tabnine))
+        (nconc (seq-take candidates-tabnine 3)
+               (seq-take candidates-lsp 6))))))
 #+end_src
 * Development settings
 ** Git settings
@@ -2516,12 +2601,40 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
 
 (use-package lsp-ui
   :ensure t
+  :after lsp-mode
+  :diminish
+  :commands lsp-ui-mode
+  :custom-face
+  (lsp-ui-doc-background ((t (:background nil))))
+  (lsp-ui-doc-header ((t (:inherit (font-lock-string-face italic)))))
+  :bind
+  (:map lsp-ui-mode-map
+        ([remap xref-find-definitions] . lsp-ui-peek-find-definitions)
+        ([remap xref-find-references] . lsp-ui-peek-find-references)
+        ("C-c u" . lsp-ui-imenu)
+        ("M-i" . lsp-ui-doc-focus-frame))
+  (:map lsp-mode-map
+        ("M-n" . forward-paragraph)
+        ("M-p" . backward-paragraph))
+  :custom
+  (lsp-ui-doc-header t)
+  (lsp-ui-doc-include-signature t)
+  (lsp-ui-doc-border (face-foreground 'default))
+  (lsp-ui-sideline-enable nil)
+  (lsp-ui-sideline-ignore-duplicate t)
+  (lsp-ui-sideline-show-code-actions nil)
   :config
-  (setq lsp-ui-sideline-ignore-duplicate t)
-  (add-hook 'lsp-mode-hook 'lsp-ui-mode))
+  ;; Use lsp-ui-doc-webkit only in GUI
+  (if (display-graphic-p)
+      (setq lsp-ui-doc-use-webkit t))
+  ;; WORKAROUND Hide mode-line of the lsp-ui-imenu buffer
+  ;; https://github.com/emacs-lsp/lsp-ui/issues/243
+  (defadvice lsp-ui-imenu (after hide-lsp-ui-imenu-mode-line activate)
+    (setq mode-line-format nil)))
 
 (use-package company-lsp
-  ;;   ;; :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp") :upgrade t)
+  ;; because of network issue, should download manually
+  ;; :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp") :upgrade t)
   :config
   ;; lsp hack due to: https://github.com/tigersoldier/company-lsp/issues/145
   (defun lsp--sort-completions (completions)
@@ -2622,6 +2735,12 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   :hook
   (python-mode . py-autopep8-enable-on-save)
   )
+
+(use-package lsp-pyright
+  :ensure t
+  :hook (python-mode . (lambda () (require 'lsp-pyright)))
+  :init (when (executable-find "python3")
+          (setq lsp-pyright-python-executable-cmd "python3")))
 #+end_src
 ** EIN settings
 #+begin_src emacs-lisp
@@ -2637,6 +2756,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   )
 #+end_src
 ** Shell script mode
+*** basic settings
 #+begin_src emacs-lisp
 ;; awesoome. sh-mode provides `sh-while-getopts' to automate getopts.
 (use-package sh-script
@@ -2652,6 +2772,17 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   :custom
   (sh-basic-offset 2)
   (sh-indentation 2))
+#+end_src
+*** bash lsp settings
+This Server supports automatic install (need has npm installed as dependency). Install this language server with M-x =lsp-install-server= =RET= =bash-ls= =RET=.
+
+Also can install via npm in terminal as following.
+#+begin_src shell
+npm i -g bash-language-server
+#+end_src
+Add lsp to =sh-mode= hook.
+#+begin_src emacs-lisp
+;; (add-hook 'sh-mode-hook 'lsp)
 #+end_src
 ** Elisp mode
 #+begin_src emacs-lisp
@@ -2687,11 +2818,21 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   :hook ((sql-mode . sqlup-mode)
          (sql-interactive-mode . sqlup-mode)
          )
-  ;; :bind (:map sql-mode-map
-  ;;        ("C-c u" . sqlup-capitalize-keywords-in-region))
+  :bind (:map sql-mode-map
+              ("C-c u" . sqlup-capitalize-keywords-in-region)
+              ("C-c C-c" . lsp-sql-execute-query))
   )
 #+end_src
 *** SQL LSP support
+1. install sqls first
+#+begin_src shell
+# 1. install sqls binary
+go get github.com/lighttiger2505/sqls
+
+# 2. add sqls to PATH
+export PATH=~/go/bin/:$PATH
+#+end_src
+2. config database information
 #+begin_src emacs-lisp
 (setq lsp-sqls-connections
     '(((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/midea_cs"))))
@@ -2736,6 +2877,7 @@ brew install leiningen
   )
 #+end_src
 ** Web mode
+*** Web mode basic settings
 #+begin_src emacs-lisp
 (use-package web-mode
   :ensure t
@@ -2744,6 +2886,13 @@ brew install leiningen
   (setq web-mode-markup-indent-offset 2)
   (setq web-mode-css-indent-offset 2)
   (setq web-mode-code-indent-offset 2))
+#+end_src
+*** HTML lsp support
+This Server supports automatic install (need has npm installed as dependency). Install this language server with M-x =lsp-install-server= =RET= =html-ls= =RET=.
+
+Also can install via npm in terminal as following.
+#+begin_src shell
+npm i -g vscode-html-languageserver-bin
 #+end_src
 ** JaveScript settings
 #+begin_src emacs-lisp
@@ -3128,30 +3277,27 @@ npm install darkreader
 #+begin_src emacs-lisp
 (use-package dashboard
   :ensure t
-  :init
-  ;; Format: "(icon title help action face prefix suffix)"
-  (setq dashboard-navigator-buttons `(((,(if (fboundp 'all-the-icons-octicon) (all-the-icons-octicon "mark-github"     :height 1.0 :v-adjust  0.0) "★")
-                                        "GitHub" "Browse" (lambda (&rest _) (browse-url homepage-url)))
-                                       (,(if (fboundp 'all-the-icons-octicon) (all-the-icons-octicon "heart"           :height 1.1 :v-adjust  0.0) "♥")
-                                        "Stars" "Show stars" (lambda (&rest _) (browse-url stars-url)))
-                                       (,(if (fboundp 'all-the-icons-material) (all-the-icons-material "report_problem" :height 1.1 :v-adjust -0.2) "⚑")
-                                        "Issue" "Report issue" (lambda (&rest _) (browse-url issue-url)) warning)
-                                       (,(if (fboundp 'all-the-icons-material) (all-the-icons-material "update"         :height 1.1 :v-adjust -0.2) "♺")
-                                        "Update" "Update packages synchronously" (lambda (&rest _) (auto-package-update-now)) success))))
-
   :hook ((after-init . dashboard-setup-startup-hook)
          (dashboard-mode . (lambda ()
-                             (setq-local global-hl-line-mode nil))))
+                             (setq-local display-line-numbers-mode nil))))
+  :bind
+  (;; ("C-z d" . open-dashboard)
+   :map dashboard-mode-map
+   (("n" . dashboard-next-line)
+    ("p" . dashboard-previous-line)
+    ;; ("N" . dashboard-next-section)
+    ;; ("F" . dashboard-previous-section)
+    ))
   :config
-  (defconst homepage-url "https://github.com/wowhxj/.emacs.d")
-  (defconst stars-url (concat homepage-url "/stargazers"))
-  (defconst issue-url (concat homepage-url "/issues/new"))
   ;; show Dashboard in frames created with emacsclient -c
-  ;; (setq initial-buffer-choice (lambda () (get-buffer "*dashboard*")))
+  (setq initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name)))
+
   ;; To use it with counsel-projectile
   (setq dashboard-projects-switch-function 'counsel-projectile-switch-project-by-name)
-  ;; show agenda for the upcoming seven days
-  (setq dashboard-week-agenda t)
+
+  ;; show agenda all or for the upcoming seven days
+  (setq dashboard-filter-agenda-entry 'dashboard-no-filter-agenda)
+  ;; (setq dashboard-week-agenda t)
   :custom
   (dashboard-startup-banner 'logo)
   (dashboard-set-heading-icons t)
@@ -3161,15 +3307,45 @@ npm install darkreader
   (dashboard-items '((agenda    . 5)
                      (recents   . 5)
                      (projects  . 5)
-                     (bookmarks . 5))))
+                     (bookmarks . 2)))
+  (dashboard-navigator-buttons
+   (if (featurep 'all-the-icons)
+       `(((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust -0.05)
+           "M-EMACS" "Browse My EMACS Homepage"
+           (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
+          (,(all-the-icons-fileicon "elisp" :height 1.0 :v-adjust -0.1)
+           "Configuration" "" (lambda (&rest _) (edit-configs)))
+          (,(all-the-icons-faicon "cogs" :height 1.0 :v-adjust -0.1)
+           "Update" "" (lambda (&rest _) (auto-package-update-now)))))
+     `((("" "M-EMACS" "Browse My EMACS Homepage"
+         (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
+        ("" "Configuration" "" (lambda (&rest _) (edit-configs)))
+        ("" "Update" "" (lambda (&rest _) (auto-package-update-now)))))))
+  )
 #+end_src
 ** Yasnippet
 #+begin_src emacs-lisp
-(use-package yasnippet-snippets
-  :ensure t
+(use-package yasnippet
+  :diminish yas-minor-mode
   :init
-  (yas-global-mode 1)
-  )
+  (use-package yasnippet-snippets :ensure t :after yasnippet)
+  :hook ((prog-mode LaTeX-mode org-mode) . yas-minor-mode)
+  :bind
+  ;; (:map yas-minor-mode-map ("C-c C-n" . yas-expand-from-trigger-key))
+  (:map yas-keymap
+        (("TAB" . smarter-yas-expand-next-field)
+         ([(tab)] . smarter-yas-expand-next-field)))
+  :config
+  (yas-reload-all)
+  (defun smarter-yas-expand-next-field ()
+    "Try to `yas-expand' then `yas-next-field' at current cursor position."
+    (interactive)
+    (let ((old-point (point))
+          (old-tick (buffer-chars-modified-tick)))
+      (yas-expand)
+      (when (and (eq old-point (point))
+                 (eq old-tick (buffer-chars-modified-tick)))
+        (ignore-errors (yas-next-field))))))
 #+end_src
 * OSX specified
 ** dictionary
