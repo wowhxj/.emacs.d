@@ -2413,7 +2413,7 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
                       (setq company-tabnine-max-num-results 5)
                       (add-to-list 'company-transformers 'company//sort-by-tabnine t)
                       (add-to-list 'company-backends '(company-capf :with company-tabnine :separate))))
-  (kill-emacs . company-tabnine-kill-process)
+   (kill-emacs . company-tabnine-kill-process)
   :config
   ;; Enable TabNine on default
   (add-to-list 'company-backends #'company-tabnine)
@@ -2529,11 +2529,6 @@ Magit
 #+end_src
 ** lsp mode
 *** lsp install and settings
-1. Take pyls for example. First need to install =python-language-server=:
-#+begin_src shell
-pip install 'python-language-server[all]'
-#+end_src
-pyls settings:
 #+begin_src emacs-lisp
 (use-package lsp-mode
   :ensure t
@@ -2574,42 +2569,11 @@ pyls settings:
   :bind (:map lsp-mode-map ("C-c C-f" . lsp-format-buffer))
   :hook ((prog-mode . lsp)
          (lsp-mode . (lambda ()
-                       (setq-local company-backends '(company-lsp company-tabnine)))))
-  )
-#+end_src
-
-2. Another choice is to install Microsoft-Python-LanguageServer:
-#+begin_src shell
-# 1. install dotnet
-brew install dotnet
-
-# 2. Clone and build python-language-server
-git clone https://github.com/Microsoft/python-language-server.git
-cd python-language-server/src/LanguageServer/Impl
-dotnet publish -c Release -r osx-x64   # for mac
-
-# 3. Then make the binary executable
-chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer
-
-# 4. Set executable to lsp-python-ms-executable or add binary directory to PATH
-#+end_src
-
-3. Then add =lsp-mode= configuration in Emacs:
-#+begin_src emacs-lisp
-(use-package lsp-python-ms
-  :ensure t
-  :demand
-  :hook ((prog-mode . (lambda ()
-                        (require 'lsp-python-ms)
-                        (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
-                          (lsp-deferred))))
-         (lsp-mode . (lambda ()
                        ;; Integrate `which-key'
-                       (lsp-enable-which-key-integration))))
-  :init
-  (setq lsp-python-ms-auto-install-server t)
-  (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
-  (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
+                       (lsp-enable-which-key-integration)))
+         ;; (lsp-mode . (lambda ()
+         ;;               (setq-local company-backends '(company-lsp company-tabnine))))
+         )
   )
 #+end_src
 *** lsp ui
@@ -2647,23 +2611,22 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   (defadvice lsp-ui-imenu (after hide-lsp-ui-imenu-mode-line activate)
     (setq mode-line-format nil)))
 #+end_src
-*** company-lsp
+*** company-lsp (abondoned, because lsp-mode already support with company-capf)
 #+begin_src emacs-lisp
-(use-package company-lsp
-  ;; because of network issue, should download manually
-  :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp"))
-  :hook (lsp-mode . (lambda ()
-                      (setq-local company-backends 'company-lsp)))
-  :config
-  ;; lsp hack due to: https://github.com/tigersoldier/company-lsp/issues/145
-  (defun lsp--sort-completions (completions)
-    (lsp-completion--sort-completions completions))
-  (defun lsp--annotate (item)
-    (lsp-completion--annotate item))
-  (defun lsp--resolve-completion (item)
-    (lsp-completion--resolve item))
-  ;; (push 'company-lsp company-backends)
-  )
+;; (use-package company-lsp
+;;   :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp"))
+;;   :hook (lsp-mode . (lambda ()
+;;                       (setq-local company-backends 'company-lsp)))
+;;   :config
+;;   ;; lsp hack due to: https://github.com/tigersoldier/company-lsp/issues/145
+;;   (defun lsp--sort-completions (completions)
+;;     (lsp-completion--sort-completions completions))
+;;   (defun lsp--annotate (item)
+;;     (lsp-completion--annotate item))
+;;   (defun lsp--resolve-completion (item)
+;;     (lsp-completion--resolve item))
+;;   ;; (push 'company-lsp company-backends)
+;;   )
 #+end_src
 *** lsp ivy
 #+begin_src emacs-lisp
@@ -2757,6 +2720,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   (eval `(lsp-org-babel-enable ,lang)))
 #+end_src
 ** Python settings
+*** Basic python settings
 #+begin_src emacs-lisp
 (defun my-run-python ()
   (save-selected-window
@@ -2799,6 +2763,44 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   :hook (python-mode . (lambda () (require 'lsp-pyright)))
   :init (when (executable-find "python3")
           (setq lsp-pyright-python-executable-cmd "python3")))
+#+end_src
+*** python lsp settings
+**** Option 1: pyls
+Use pyls as python language server. First need to install =python-language-server= via pip:
+#+begin_src shell
+pip install 'python-language-server[all]'
+#+end_src
+**** Option 2: Microsoft-Python-LanguageServer
+1. install mspyls binary.
+#+begin_src shell
+# 1. install dotnet
+brew install dotnet
+
+# 2. Clone and build python-language-server
+git clone https://github.com/Microsoft/python-language-server.git
+cd python-language-server/src/LanguageServer/Impl
+dotnet publish -c Release -r osx-x64   # for mac
+
+# 3. Then make the binary executable
+chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer
+
+# 4. Set executable to lsp-python-ms-executable or add binary directory to PATH
+#+end_src
+
+2. Then add =lsp-mode= configuration in Emacs:
+#+begin_src emacs-lisp
+(use-package lsp-python-ms
+  :ensure t
+  :demand
+  :hook ((python-mode . (lambda ()
+                        (require 'lsp-python-ms)
+                        (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
+                          (lsp-deferred)))))
+  :init
+  (setq lsp-python-ms-auto-install-server t)
+  (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
+  (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
+  )
 #+end_src
 ** TODO Dap mode
 ** EIN settings
