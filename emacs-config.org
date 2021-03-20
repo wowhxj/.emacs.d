@@ -1597,6 +1597,9 @@ otherwise use the subtree title."
 *** Enable iython src block
 #+begin_src emacs-lisp
 ;; support ipython eval
+;; need to hack ob-ipython.el due to following:
+;; https://github.com/gregsexton/ob-ipython/issues/161
+;; also need to compile again to make ob-ipython.elc work
 (use-package ob-ipython
   :ensure t
 )
@@ -2705,6 +2708,8 @@ Magit
             (format "Enable LSP mode in the buffer of org source block (%s)."
                     (upcase ,lang)))
 
+       (setq lsp-headerline-breadcrumb-mode nil)
+
        (if (fboundp ',edit-pre)
            (advice-add ',edit-pre :after ',intern-pre)
          (progn
@@ -2757,12 +2762,6 @@ Magit
   :hook
   (python-mode . py-autopep8-enable-on-save)
   )
-
-(use-package lsp-pyright
-  :ensure t
-  :hook (python-mode . (lambda () (require 'lsp-pyright)))
-  :init (when (executable-find "python3")
-          (setq lsp-pyright-python-executable-cmd "python3")))
 #+end_src
 *** python lsp settings
 **** Option 1: pyls
@@ -2789,18 +2788,29 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
 
 2. Then add =lsp-mode= configuration in Emacs:
 #+begin_src emacs-lisp
-(use-package lsp-python-ms
+;; (use-package lsp-python-ms
+;;   :ensure t
+;;   :demand
+;;   :hook ((python-mode . (lambda ()
+;;                         (require 'lsp-python-ms)
+;;                         (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
+;;                           (lsp-deferred)))))
+;;   :init
+;;   (setq lsp-python-ms-auto-install-server t)
+;;   (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
+;;   (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
+;;   )
+#+end_src
+**** Option 3: pyright
+This Server supports automatic install (need has npm installed as dependency). Install this language server with M-x =lsp-install-server= =RET= =pyright= =RET=.
+#+begin_src emacs-lisp
+(use-package lsp-pyright
   :ensure t
-  :demand
-  :hook ((python-mode . (lambda ()
-                        (require 'lsp-python-ms)
-                        (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
-                          (lsp-deferred)))))
-  :init
-  (setq lsp-python-ms-auto-install-server t)
-  (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
-  (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
-  )
+  :hook (python-mode . (lambda ()
+                         (require 'lsp-pyright)
+                         (lsp-deferred)))
+  :init (when (executable-find "python3")
+          (setq lsp-pyright-python-executable-cmd "python3")))
 #+end_src
 ** TODO Dap mode
 ** EIN settings
@@ -3338,18 +3348,30 @@ npm install darkreader
 #+begin_src emacs-lisp
 (use-package dashboard
   :ensure t
+  :diminish (dashboard-mode page-break-lines-mode)
   :hook ((after-init . dashboard-setup-startup-hook)
          (dashboard-mode . (lambda ()
                              (setq-local display-line-numbers-mode nil))))
   :bind
   (;; ("C-z d" . open-dashboard)
    :map dashboard-mode-map
-   (("n" . dashboard-next-line)
-    ("p" . dashboard-previous-line)
+   (
+    ;; ("n" . dashboard-next-line)
+    ;; ("k" . nil) ;; a way to unbind key via :bind
+    ;; ("p" . dashboard-previous-line)
+    ;; ("j" . dashboard-jump-to-projects)
     ;; ("N" . dashboard-next-section)
     ;; ("F" . dashboard-previous-section)
     ))
   :config
+  ;; (custom-set-variables
+  ;;  '(dashboard-item-shortcuts '((recents . "r")
+  ;;                               (bookmarks . "m")
+  ;;                               (projects . "j")
+  ;;                               (agenda . "a")
+  ;;                               (registers . "e"))))
+  ;; (unbind-key "p" dashboard-mode-map) ;; a way to unbind key
+
   ;; show Dashboard in frames created with emacsclient -c
   (setq initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name)))
 
