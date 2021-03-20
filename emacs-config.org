@@ -22,8 +22,8 @@ Make startup faster by reducing the frequency of garbage collection and then use
   (lambda ()
   ;; The default is 800 kilobytes.  Measured in bytes.
   (setq gc-cons-threshold (* 50 1000 1000)
-  gc-cons-percentage 0.1
-  file-name-handler-alist default-file-name-handler-alist)))
+        gc-cons-percentage 0.1
+        file-name-handler-alist default-file-name-handler-alist)))
 
 ;; Increase the amount of data from the process
 ;; `lsp-mode' gains
@@ -51,12 +51,13 @@ Make startup faster by reducing the frequency of garbage collection and then use
 #+begin_src emacs-lisp
 (require 'package)
 (setq package-archives
-  '(("gnu"    . "http://elpa.emacs-china.org/gnu/")
-    ("melpa"  . "http://elpa.emacs-china.org/melpa/")
-	("melpa-stable" . "http://elpa.emacs-china.org/melpa-stable/")
-	("marmalade" . "http://elpa.emacs-china.org/marmalade/")
-	("org" . "hhttp://elpa.emacs-china.org/org/")
-    ))
+      '(("gnu"    . "http://elpa.emacs-china.org/gnu/")
+        ("melpa"  . "http://elpa.emacs-china.org/melpa/")
+	      ("melpa-stable" . "http://elpa.emacs-china.org/melpa-stable/")
+	      ("marmalade" . "http://elpa.emacs-china.org/marmalade/")
+        ("org"         . "http://orgmode.org/elpa/")
+	      ;; ("org" . "hhttp://elpa.emacs-china.org/org/")
+        ))
 (package-initialize)
 #+end_src
 ** Load =use-package= to manage package
@@ -102,13 +103,13 @@ Use the following keywords ordering for =use-package=:
 #+begin_src emacs-lisp
 ;; auto update packages
 (use-package auto-package-update
-:ensure t
-:config
+  :ensure t
+  :config
   (setq auto-package-update-delete-old-versions t)
   (setq auto-package-update-hide-results t)
   (auto-package-update-maybe))
 #+end_src
-** quelpa, somepackages would be downloaded via quelpa
+** quelpa, somepackages for example company-lsp  would be downloaded via quelpa.
 #+begin_src emacs-lisp
 ;; Bootstrap `quelpa'.
 (use-package quelpa
@@ -118,9 +119,11 @@ Use the following keywords ordering for =use-package=:
   (quelpa-self-upgrade-p nil)
   (quelpa-checkout-melpa-p nil))
 
+;; quelpa integration with use-package
 (use-package quelpa-use-package :ensure t)
 #+end_src
 * exec-path enviroment
+Only for Mac system.
 #+begin_src emacs-lisp
 (use-package exec-path-from-shell
   :ensure t
@@ -137,6 +140,7 @@ Use the following keywords ordering for =use-package=:
 #+end_src
 ** Const definition
 #+begin_src emacs-lisp
+;; system type definition
 (defconst sys/win32p
   (eq system-type 'windows-nt)
   "Are we running on a WinTel system?")
@@ -181,12 +185,12 @@ Use the following keywords ordering for =use-package=:
   (delete-other-windows))
 
 (defun edit-configs ()
-  "Opens the README.org file."
+  "Opens emacs-config.org file."
   (interactive)
   (find-file "~/.emacs.d/emacs-config.org"))
 #+end_src
 * UI settings
-User interaction settings.
+** Basic UI settings
 #+begin_src emacs-lisp
 ;; Supress GUI features
 (setq use-file-dialog nil
@@ -218,7 +222,7 @@ User interaction settings.
 ;; No annoying bell
 (setq ring-bell-function 'ignore)
 
-;; Smooth scroll & friends
+;; Smooth scroll
 (setq scroll-step 2
       scroll-margin 2
       hscroll-step 2
@@ -374,6 +378,58 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
 (add-hook 'prog-mode-hook 'add-pretty-lambda)
 (add-hook 'org-mode-hook 'add-pretty-lambda)
 #+end_src
+** Font settings
+#+begin_src emacs-lisp
+;; set font and size
+(set-face-attribute 'default nil :height 160)
+(set-frame-font "Microsoft YaHei Mono 16")
+;; (set-fontset-font "fontset-default" 'han '("Microsoft YaHei" . "unicode-bmp")) ;; set chinese font
+#+end_src
+** Theme settings
+#+begin_src emacs-lisp
+(use-package apropospriate-theme
+  :ensure t
+  :config
+  ;; (load-theme 'apropospriate-light t)
+  ;; (load-theme 'apropospriate-dark t)
+  )
+
+(use-package solarized-theme
+  :ensure t
+  :config
+  ;; (load-theme 'apropospriate-light t)
+  (load-theme 'solarized-dark t))
+#+end_src
+** Optimize editing experience
+Remove useless whitespace before saving.
+#+begin_src emacs-lisp
+;; Remove useless whitespace before saving a file
+(defun delete-trailing-whitespace-except-current-line ()
+  "An alternative to `delete-trailing-whitespace'.
+
+The original function deletes trailing whitespace of the current line."
+  (interactive)
+  (let ((begin (line-beginning-position))
+        (end (line-end-position)))
+    (save-excursion
+      (when (< (point-min) (1- begin))
+        (save-restriction
+          (narrow-to-region (point-min) (1- begin))
+          (delete-trailing-whitespace)
+          (widen)))
+      (when (> (point-max) (+ end 2))
+        (save-restriction
+          (narrow-to-region (+ end 2) (point-max))
+          (delete-trailing-whitespace)
+          (widen))))))
+
+(defun smart-delete-trailing-whitespace ()
+  "Invoke `delete-trailing-whitespace-except-current-line' on selected major modes only."
+  (unless (member major-mode '(diff-mode))
+    (delete-trailing-whitespace-except-current-line)))
+
+(add-hook 'before-save-hook #'smart-delete-trailing-whitespace)
+#+end_src
 * Backup settings
 Don't backup because we have git. Auto save which is useful.
 #+begin_src emacs-lisp
@@ -403,14 +459,6 @@ Use utf-8 everywhere.
 (prefer-coding-system 'utf-8)
 (when (display-graphic-p)
   (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
-#+end_src
-* Font settings
-#+begin_src emacs-lisp
-;; set font and size
-(set-face-attribute 'default nil :height 160)
-;; don't use following settings because it will make companybox font size too small
-(set-frame-font "Microsoft YaHei Mono 16")
-;; (set-fontset-font "fontset-default" 'han '("Microsoft YaHei" . "unicode-bmp")) ;; set chinese font
 #+end_src
 * Revert settings
 #+begin_src emacs-lisp
@@ -572,6 +620,7 @@ Else, call `comment-or-uncomment-region' on the current line."
       ("Prog" (and (derived-mode . prog-mode)
                    (not (starred-name))))
       ("Dired" (mode . dired-mode))
+      ("EAF" (mode . eaf-mode))
       ("IRC" (or (mode . rcirc-mode)
                  (mode . erc-mode)))
       ("EBrowse" (or (mode . ebrowse-tree-mode)
@@ -1056,21 +1105,6 @@ Other related settings makes ivy more beautiful.
   ;; For better performance
   (setq ivy-rich-parse-remote-buffer nil))
 #+end_src
-* Theme settings
-#+begin_src emacs-lisp
-(use-package apropospriate-theme
-  :ensure t
-  :config
-  ;; (load-theme 'apropospriate-light t)
-  ;; (load-theme 'apropospriate-dark t)
-  )
-
-(use-package solarized-theme
-  :ensure t
-  :config
-  ;; (load-theme 'apropospriate-light t)
-  (load-theme 'solarized-dark t))
-#+end_src
 * Dired settings
 ** Basic settings
 #+begin_src emacs-lisp
@@ -1265,7 +1299,7 @@ Other related settings makes ivy more beautiful.
   :custom
   (doom-modeline-height 15)
   (doom-modeline-bar-width 6)
-  (doom-modeline-lsp t)
+  ;; (doom-modeline-lsp t)
   (doom-modeline-github nil)
   (doom-modeline-mu4e nil)
   (doom-modeline-irc nil)
@@ -1286,7 +1320,8 @@ Other related settings makes ivy more beautiful.
 ** Org basic settings
 #+begin_src emacs-lisp
 (use-package org
-  :ensure t
+  :ensure org-plus-contrib
+  :defer 7
   :mode ("\\.org\\'" . org-mode)
   :hook ((org-mode . visual-line-mode)
          (org-mode . set-block-bg)
@@ -1398,6 +1433,12 @@ Other related settings makes ivy more beautiful.
 (use-package toc-org
   :ensure t
   :hook (org-mode . toc-org-mode))
+
+;; beautiful org bullets
+(use-package org-bullets
+  :ensure t
+  :config
+  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
 #+end_src
 ** Enhance refile to a new file
 #+begin_src emacs-lisp
@@ -1566,50 +1607,13 @@ otherwise use the subtree title."
 (defun my-set-ob-ipython-resource-dir ()
   "set ob-ipython image directory"
   (interactive)
-
   (setq foldername (concat (buffer-file-name) ".assets/"))
   (if (not (file-exists-p foldername))
       (mkdir foldername))
   (setq ob-ipython-resources-dir foldername)
   )
 #+end_src
-*** Let python src block work with lsp-mode
-#+begin_src emacs-lisp
-;; need to identify :file in python src block
-(defun org-babel-edit-prep:python (babel-info)
-      "Prepare the local buffer environment for Org source block."
-      (let ((lsp-file (or (->> babel-info caddr (alist-get :file))
-                      buffer-file-name)))
-        (setq-local buffer-file-name lsp-file)
-        (setq-local lsp--buffer-uri (lsp--path-to-uri buffer-file-name))
-        (lsp)
-        (push 'company-lsp company-backends)
-        ))
-
-(defun org-babel-edit-prep:ipython (babel-info)
-      "Prepare the local buffer environment for Org source block."
-      (let ((lsp-file (or (->> babel-info caddr (alist-get :file))
-                      buffer-file-name)))
-        (setq-local buffer-file-name lsp-file)
-        (setq-local lsp--buffer-uri (lsp--path-to-uri buffer-file-name))
-        (lsp)
-        (push 'company-lsp company-backends)
-        ))
-#+end_src
-*** Let sql src block work with lsp-mode
-#+begin_src emacs-lisp
-;; need to identify :file in python src block
-(defun org-babel-edit-prep:sql (babel-info)
-      "Prepare the local buffer environment for Org source block."
-      (let ((lsp-file (or (->> babel-info caddr (alist-get :file))
-                      buffer-file-name)))
-        (setq-local buffer-file-name lsp-file)
-        (setq-local lsp--buffer-uri (lsp--path-to-uri buffer-file-name))
-        (lsp)
-        (push 'company-lsp company-backends)
-        ))
-#+end_src
-** Capture settings.
+** Capture settings
 *** Basic settings
 #+begin_src emacs-lisp
 (use-package org-capture
@@ -1730,7 +1734,7 @@ otherwise use the subtree title."
   (org-habit-show-habits t)
   (org-habit-show-all-today t))
 #+end_src
-** links settings.
+** Link settings
 #+begin_src emacs-lisp
 ;; org links
 (use-package ol
@@ -1773,7 +1777,6 @@ otherwise use the subtree title."
           ("py" . "src python :results output :file \"/Users/randolph/Documents/sandbox/midea_cs/data_processing/excel_processing.py\""))))
 #+end_src
 ** Org clock
-Record the time.
 #+begin_src emacs-lisp
 (use-package org-clock
   :ensure nil
@@ -1800,8 +1803,8 @@ Record the time.
                                                 :timeout 5000
                                                 :urgency 'critical))))
 #+end_src
-** Exporting settings.
-Basic settings
+** Exporting settings
+*** Basic settings
 #+begin_src emacs-lisp
 ;; export settings. will affect ox-reveal
 (use-package ox
@@ -1827,7 +1830,7 @@ Basic settings
   ;; use pandoc to replace md backend
   (org-export-backends '(html pandoc)))
 #+end_src
-Modify export directory:
+*** Modify export directory
 #+begin_src emacs-lisp
 ;; modify export directory to exported
 (defun org-export-output-file-name-modified (orig-fun extension &optional subtreep pub-dir)
@@ -1838,7 +1841,7 @@ Modify export directory:
   (apply orig-fun extension subtreep pub-dir nil))
 (advice-add 'org-export-output-file-name :around #'org-export-output-file-name-modified)
 #+end_src
-Backends settings:
+*** Backend settings
 #+begin_src emacs-lisp
 (use-package ox-html
   :ensure nil
@@ -1900,7 +1903,7 @@ Backends settings:
   :after org
   )
 #+end_src
-** Auto numbering settings
+*** Auto numbering settings
 #+begin_src emacs-lisp
 ;; Dynamic headlines numbering
 (use-package org-num
@@ -1912,14 +1915,6 @@ Backends settings:
   (org-num-skip-footnotes t)
   (org-num-skip-unnumbered t)
   (org-num-skip-tags `(,org-archive-tag)))
-#+end_src
-** Org mode ui settings
-#+begin_src emacs-lisp
-;; beautiful org bullets
-(use-package org-bullets
-  :ensure t
-  :config
-  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
 #+end_src
 ** Enhance image paste from clipboard
 #+begin_src emacs-lisp
@@ -1981,17 +1976,30 @@ Backends settings:
 ;; http://ergoemacs.org/emacs/xmsi-math-symbols-input.html
 (use-package xah-math-input
   :ensure t
-  :hook (org-mode . xah-math-input-mode-on)
+  :hook ((org-mode markdown-mode) . xah-math-input-mode-on)
   )
 #+end_src
-** Mobile sync settings (for Beorg)
+** Mobile sync settings for Beorg
 #+begin_src emacs-lisp
 (setq org-mobile-directory "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/")
 (setq org-mobile-inbox-for-pull "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/")
 #+end_src
 ** TODO Org Presentation
 [[https://github.com/daviwil/dotfiles/blob/master/Emacs.org#org-mode][org-present]]
-** Others.
+** Automatically “Tangle” on save
+See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--org-mode-for-literate-programming][Literate configuration]] for details.
+#+begin_src emacs-lisp
+;; Since we don't want to disable org-confirm-babel-evaluate all
+;; of the time, do it around the after-save-hook
+(defun my/org-babel-tangle-dont-ask ()
+  ;; Dynamic scoping to the rescue
+  (let ((org-confirm-babel-evaluate nil))
+    (org-babel-tangle)))
+
+(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-dont-ask
+                                              'run-at-end 'only-in-org-mode)))
+#+end_src
+** Others
 #+begin_src emacs-lisp
 (use-package org-id
   :ensure nil
@@ -2014,18 +2022,7 @@ Backends settings:
   (org-table-export-default-format "orgtbl-to-csv")
   (org-table-formula-constants '(("PI" . "3.14159265358979323846264"))))
 #+end_src
-Automatically "Tangle" on save. See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--org-mode-for-literate-programming][Literate configuration]]
-#+begin_src emacs-lisp
-;; Since we don't want to disable org-confirm-babel-evaluate all
-;; of the time, do it around the after-save-hook
-(defun my/org-babel-tangle-dont-ask ()
-  ;; Dynamic scoping to the rescue
-  (let ((org-confirm-babel-evaluate nil))
-    (org-babel-tangle)))
 
-(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-dont-ask
-                                              'run-at-end 'only-in-org-mode)))
-#+end_src
 * Markdown settings
 #+begin_src emacs-lisp
 (use-package markdown-mode
@@ -2121,36 +2118,6 @@ mermaid.initialize({
   ;;   (advice-add #'markdown-export-and-preview :around #'my-markdown-export-and-preview))
   )
 #+end_src
-* Optimize editing experience
-Remove useless whitespace before saving.
-#+begin_src emacs-lisp
-;; Remove useless whitespace before saving a file
-(defun delete-trailing-whitespace-except-current-line ()
-  "An alternative to `delete-trailing-whitespace'.
-
-The original function deletes trailing whitespace of the current line."
-  (interactive)
-  (let ((begin (line-beginning-position))
-        (end (line-end-position)))
-    (save-excursion
-      (when (< (point-min) (1- begin))
-        (save-restriction
-          (narrow-to-region (point-min) (1- begin))
-          (delete-trailing-whitespace)
-          (widen)))
-      (when (> (point-max) (+ end 2))
-        (save-restriction
-          (narrow-to-region (+ end 2) (point-max))
-          (delete-trailing-whitespace)
-          (widen))))))
-
-(defun smart-delete-trailing-whitespace ()
-  "Invoke `delete-trailing-whitespace-except-current-line' on selected major modes only."
-  (unless (member major-mode '(diff-mode))
-    (delete-trailing-whitespace-except-current-line)))
-
-(add-hook 'before-save-hook #'smart-delete-trailing-whitespace)
-#+end_src
 * Shell settings
 ** Eshell settings
 #+begin_src emacs-lisp
@@ -2174,6 +2141,7 @@ The original function deletes trailing whitespace of the current line."
                          (eshell/alias "d" "dired $1")
                          (eshell/alias "l" "ls -lFh")
                          (eshell/alias "ll" "ls -l")
+                         (eshell/alias "l." "ls -d .*")
                          (eshell/alias "la" "ls -lAFh")
                          (eshell/alias "lr" "ls -tRFh")
                          (eshell/alias "lrt" "ls -lFcrt")
@@ -2181,8 +2149,8 @@ The original function deletes trailing whitespace of the current line."
                          (eshell/alias "lt" "ls -ltFh"))))
   :config
   ;; Prevent accident typing
-  ;; (defalias 'eshell/vi 'find-file)
-  ;; (defalias 'eshell/vim 'find-file)
+  (defalias 'eshell/vi 'find-file)
+  (defalias 'eshell/vim 'find-file)
 
   (defun eshell/icd ()
     "Interactive cd."
@@ -2311,7 +2279,7 @@ ARGS are passed to the PROGRAM."
          ("C-p"     . company-select-previous)
          ("C-n"     . company-select-next)
          ("C-s"     . company-filter-candidates)
-         ([tab]     . smarter-tab-to-complete)
+         ([tab]     . company-complete-common-or-cycle)
          ([backtab] . company-select-previous-or-abort)
          :map company-search-map
          ("C-p"    . company-select-previous)
@@ -2373,8 +2341,7 @@ If all failed, try to complete the common part with `company-complete-common'"
   (setq company-quickhelp-idle-delay 0.1)
   (company-quickhelp-mode 1))
 #+end_src
-** company box
-Use company box frontend instead of quickhelp because ein has bug.
+** company box frontend
 #+begin_src emacs-lisp
 (use-package company-box
   :ensure t
@@ -2443,7 +2410,7 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
   ;;  ("C-z t" . company-tabnine))
   :hook
   (lsp-after-open . (lambda ()
-                      (setq company-tabnine-max-num-results 3)
+                      (setq company-tabnine-max-num-results 5)
                       (add-to-list 'company-transformers 'company//sort-by-tabnine t)
                       (add-to-list 'company-backends '(company-capf :with company-tabnine :separate))))
   (kill-emacs . company-tabnine-kill-process)
@@ -2493,11 +2460,11 @@ Magit
   :hook (after-init . projectile-mode)
   :bind (:map projectile-mode-map
          ("C-c p" . projectile-command-map))
-  :config
-  (dolist (dir '("bazel-bin"
-                 "bazel-out"
-                 "bazel-testlogs"))
-    (add-to-list 'projectile-globally-ignored-directories dir))
+  ;; :config
+  ;; (dolist (dir '("bazel-bin"
+  ;;                "bazel-out"
+  ;;                "bazel-testlogs"))
+  ;;   (add-to-list 'projectile-globally-ignored-directories dir))
   :custom
   (projectile-use-git-grep t)
   (projectile-indexing-method 'alien)
@@ -2540,7 +2507,7 @@ Magit
          ;; (my/insert-string)
          "\n")
         ((sh-mode . "Shell script") nil
-         "#!/bin/bash\n"
+         "#!/bin/sh\n"
          ;; (my/insert-string)
          "\n")
         ))
@@ -2564,8 +2531,53 @@ Magit
 *** lsp install and settings
 1. Take pyls for example. First need to install =python-language-server=:
 #+begin_src shell
-conda install 'python-language-server[all]'
+pip install 'python-language-server[all]'
 #+end_src
+pyls settings:
+#+begin_src emacs-lisp
+(use-package lsp-mode
+  :ensure t
+  :defer t
+  :commands lsp
+  :custom-face
+  (lsp-headerline-breadcrumb-path-error-face
+   ((t :underline (:style wave :color ,(face-foreground 'error))
+       :inherit lsp-headerline-breadcrumb-path-face)))
+  (lsp-headerline-breadcrumb-path-warning-face
+   ((t :underline (:style wave :color ,(face-foreground 'warning))
+       :inherit lsp-headerline-breadcrumb-path-face)))
+  (lsp-headerline-breadcrumb-path-info-face
+   ((t :underline (:style wave :color ,(face-foreground 'success))
+       :inherit lsp-headerline-breadcrumb-path-face)))
+  (lsp-headerline-breadcrumb-path-hint-face
+   ((t :underline (:style wave :color ,(face-foreground 'success))
+       :inherit lsp-headerline-breadcrumb-path-face)))
+
+  (lsp-headerline-breadcrumb-symbols-error-face
+   ((t :inherit lsp-headerline-breadcrumb-symbols-face
+       :underline (:style wave :color ,(face-foreground 'error)))))
+  (lsp-headerline-breadcrumb-symbols-warning-face
+   ((t :inherit lsp-headerline-breadcrumb-symbols-face
+       :underline (:style wave :color ,(face-foreground 'warning)))))
+  (lsp-headerline-breadcrumb-symbols-info-face
+   ((t :inherit lsp-headerline-breadcrumb-symbols-face
+       :underline (:style wave :color ,(face-foreground 'success)))))
+  (lsp-headerline-breadcrumb-symbols-hint-face
+   ((t :inherit lsp-headerline-breadcrumb-symbols-face
+       :underline (:style wave :color ,(face-foreground 'success)))))
+  :custom
+  (lsp-auto-guess-root nil)
+  (lsp-prefer-flymake nil) ; Use flycheck instead of flymake
+  (lsp-file-watch-threshold 2000)
+  (read-process-output-max (* 1024 1024))
+  (lsp-eldoc-hook nil)
+  :bind (:map lsp-mode-map ("C-c C-f" . lsp-format-buffer))
+  :hook ((prog-mode . lsp)
+         (lsp-mode . (lambda ()
+                       (setq-local company-backends '(company-lsp company-tabnine)))))
+  )
+#+end_src
+
 2. Another choice is to install Microsoft-Python-LanguageServer:
 #+begin_src shell
 # 1. install dotnet
@@ -2581,6 +2593,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
 
 # 4. Set executable to lsp-python-ms-executable or add binary directory to PATH
 #+end_src
+
 3. Then add =lsp-mode= configuration in Emacs:
 #+begin_src emacs-lisp
 (use-package lsp-python-ms
@@ -2598,7 +2611,9 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
   (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
   )
-
+#+end_src
+*** lsp ui
+#+begin_src emacs-lisp
 (use-package lsp-ui
   :ensure t
   :after lsp-mode
@@ -2631,10 +2646,14 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   ;; https://github.com/emacs-lsp/lsp-ui/issues/243
   (defadvice lsp-ui-imenu (after hide-lsp-ui-imenu-mode-line activate)
     (setq mode-line-format nil)))
-
+#+end_src
+*** company-lsp
+#+begin_src emacs-lisp
 (use-package company-lsp
   ;; because of network issue, should download manually
-  ;; :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp") :upgrade t)
+  :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp"))
+  :hook (lsp-mode . (lambda ()
+                      (setq-local company-backends 'company-lsp)))
   :config
   ;; lsp hack due to: https://github.com/tigersoldier/company-lsp/issues/145
   (defun lsp--sort-completions (completions)
@@ -2643,7 +2662,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
     (lsp-completion--annotate item))
   (defun lsp--resolve-completion (item)
     (lsp-completion--resolve item))
-  ;;   (push 'company-lsp company-backends)
+  ;; (push 'company-lsp company-backends)
   )
 #+end_src
 *** lsp ivy
@@ -2701,7 +2720,43 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
           (concat typestr (lsp-render-symbol-information sym ".") pathstr)))
       (advice-add #'lsp-ivy--format-symbol-match :override #'my-lsp-ivy--format-symbol-match))))
 #+end_src
-** TODO Dap mode Python settings
+*** enable lsp mode in babel src block
+#+begin_src emacs-lisp
+;; Enable LSP in org babel
+;; https://github.com/emacs-lsp/lsp-mode/issues/377
+(cl-defmacro lsp-org-babel-enable (lang)
+  "Support LANG in org source code block."
+  (cl-check-type lang stringp)
+  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+    `(progn
+       (defun ,intern-pre (info)
+         (let ((file-name (->> info caddr (alist-get :file))))
+           (unless file-name
+             (user-error "LSP:: specify `:file' property to enable"))
+
+           (setq buffer-file-name file-name)
+           (lsp)
+           ))
+       (put ',intern-pre 'function-documentation
+            (format "Enable LSP mode in the buffer of org source block (%s)."
+                    (upcase ,lang)))
+
+       (if (fboundp ',edit-pre)
+           (advice-add ',edit-pre :after ',intern-pre)
+         (progn
+           (defun ,edit-pre (info)
+             (,intern-pre info))
+           (put ',edit-pre 'function-documentation
+                (format "Prepare local buffer environment for org source block (%s)."
+                        (upcase ,lang))))))))
+
+(defvar org-babel-lang-list
+  '("python" "sh" "sql"))
+(dolist (lang org-babel-lang-list)
+  (eval `(lsp-org-babel-enable ,lang)))
+#+end_src
+** Python settings
 #+begin_src emacs-lisp
 (defun my-run-python ()
   (save-selected-window
@@ -2719,13 +2774,16 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   (setq python-shell-completion-native-enable nil)
   :config
   (setq python-indent-offset 4
-	      python-indent 4)
-  (setq python-shell-interpreter "ipython3"
-        python-shell-interpreter-args "--colors=Linux --profile=default --simple-prompt")
-  ;; Env vars
-  (with-eval-after-load 'exec-path-from-shell
-    (exec-path-from-shell-copy-env "PYTHONPATH"))
-
+	      python-indent 4
+	      indent-tabs-mode nil
+	      default-tab-width 4)
+  (setq python-shell-interpreter "jupyter-console"
+        python-shell-interpreter-args "--simple-prompt --kernel=Python3"
+        python-shell-prompt-detect-failure-warning nil)
+  (add-to-list 'python-shell-completion-native-disabled-interpreters
+               "jupyter-console")
+  (add-to-list 'python-shell-completion-native-disabled-interpreters
+               "jupyter")
   ;; Live Coding in Python
   (use-package live-py-mode :ensure t)
 )
@@ -2742,6 +2800,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   :init (when (executable-find "python3")
           (setq lsp-pyright-python-executable-cmd "python3")))
 #+end_src
+** TODO Dap mode
 ** EIN settings
 #+begin_src emacs-lisp
 (use-package ein
@@ -2918,7 +2977,7 @@ EAF: Emacs Application Framework.
 ** download dependencies
 For non-Mac system, we can use =M-x eaf-install-dependencies= to install depandencies.
 
-If it is MacOS, should install dependencies by hand:
+If in MacOS, you should install dependencies by hand:
 #+begin_src shell
 # 1. epc
 pip install epc
@@ -3060,58 +3119,38 @@ npm install darkreader
 #+end_src
 ** Smartparens
 #+begin_src emacs-lisp
-(use-package smartparens-config
-  :after smartparens
-  :config
-  ;; don't create a pair with single quote in minibuffer
-  (sp-local-pair 'minibuffer-inactive-mode "'" nil :actions nil)
-
-  ;; indent after inserting any kinds of parens
-  (defun my/smartparens-pair-newline-and-indent (id action context)
-    (save-excursion
-      (newline)
-      (indent-according-to-mode))
-    (indent-according-to-mode))
-  (sp-pair "(" nil :post-handlers
-           '(:add (my/smartparens-pair-newline-and-indent "RET")))
-  (sp-pair "{" nil :post-handlers
-           '(:add (my/smartparens-pair-newline-and-indent "RET")))
-  (sp-pair "[" nil :post-handlers
-           '(:add (my/smartparens-pair-newline-and-indent "RET")))
-  )
-
 (use-package smartparens
   :ensure t
   :hook ((after-init . show-smartparens-global-mode)
          ((prog-mode org-mode) . smartparens-mode))
-  ;; :bind (:map smartparens-mode-map
-  ;;             ;; paredit bindings
-  ;;             ("C-M-f" . sp-forward-sexp)
-  ;;             ("C-M-b" . sp-backward-sexp)
-  ;;             ("C-M-d" . sp-down-sexp)
-  ;;             ("C-M-u" . sp-backward-up-sexp)
-  ;;             ("C-M-n" . sp-up-sexp)
-  ;;             ("C-M-p" . sp-backward-down-sexp)
-  ;;             ("M-s" . sp-splice-sexp)
-  ;;             ("M-<up>" . sp-splice-sexp-killing-backward)
-  ;;             ("M-<down>" . sp-splice-sexp-killing-forward)
-  ;;             ("M-r" . sp-splice-sexp-killing-around)
-  ;;             ("M-(" . sp-wrap-round)
-  ;;             ("M-{" . sp-wrap-curly)
-  ;;             ("C-)" . sp-forward-slurp-sexp)
-  ;;             ("C-<right>" . sp-forward-slurp-sexp)
-  ;;             ("C-}" . sp-forward-barf-sexp)
-  ;;             ("C-<left>" . sp-forward-barf-sexp)
-  ;;             ("C-(" . sp-backward-slurp-sexp)
-  ;;             ("C-M-<left>" . sp-backward-slurp-sexp)
-  ;;             ("C-{" . sp-backward-barf-sexp)
-  ;;             ("C-M-<right>" . sp-backward-barf-sexp)
-  ;;             ("M-S" . sp-split-sexp)
-  ;;             ;; mine
-  ;;             ("C-M-k" . sp-kill-sexp)
-  ;;             ("C-M-w" . sp-copy-sexp)
-  ;;             ("M-@" . sp-mark-sexp)
-  ;;             )
+  :bind (:map smartparens-mode-map
+              ;; paredit bindings
+              ("C-M-n" . sp-forward-sexp)
+              ("C-M-p" . sp-backward-sexp)
+              ("C-M-d" . sp-down-sexp)
+              ("C-M-u" . sp-backward-up-sexp)
+              ;; ("C-M-b" . sp-up-sexp)
+              ;; ("C-M-f" . sp-backward-down-sexp)
+              ;; ("M-s" . sp-splice-sexp)
+              ;; ("M-<up>" . sp-splice-sexp-killing-backward)
+              ;; ("M-<down>" . sp-splice-sexp-killing-forward)
+              ;; ("M-r" . sp-splice-sexp-killing-around)
+              ;; ("M-(" . sp-wrap-round)
+              ;; ("M-{" . sp-wrap-curly)
+              ;; ("C-)" . sp-forward-slurp-sexp)
+              ;; ("C-<right>" . sp-forward-slurp-sexp)
+              ;; ("C-}" . sp-forward-barf-sexp)
+              ;; ("C-<left>" . sp-forward-barf-sexp)
+              ;; ("C-(" . sp-backward-slurp-sexp)
+              ;; ("C-M-<left>" . sp-backward-slurp-sexp)
+              ;; ("C-{" . sp-backward-barf-sexp)
+              ;; ("C-M-<right>" . sp-backward-barf-sexp)
+              ;; ("M-S" . sp-split-sexp)
+              ;; ;; mine
+              ;; ("C-M-k" . sp-kill-sexp)
+              ;; ("C-M-w" . sp-copy-sexp)
+              ;; ("M-@" . sp-mark-sexp)
+              )
   :diminish smartparens-mode
   :init
   (setq ;; avoid slowness when editing inside a comment for modes with
@@ -3175,6 +3214,26 @@ npm install darkreader
   ;;; org modes
   (sp-with-modes 'org-mode
     (sp-local-pair "=" "="))
+  )
+
+(use-package smartparens-config
+  :after smartparens
+  :config
+  ;; don't create a pair with single quote in minibuffer
+  (sp-local-pair 'minibuffer-inactive-mode "'" nil :actions nil)
+
+  ;; indent after inserting any kinds of parens
+  (defun my/smartparens-pair-newline-and-indent (id action context)
+    (save-excursion
+      (newline)
+      (indent-according-to-mode))
+    (indent-according-to-mode))
+  (sp-pair "(" nil :post-handlers
+           '(:add (my/smartparens-pair-newline-and-indent "RET")))
+  (sp-pair "{" nil :post-handlers
+           '(:add (my/smartparens-pair-newline-and-indent "RET")))
+  (sp-pair "[" nil :post-handlers
+           '(:add (my/smartparens-pair-newline-and-indent "RET")))
   )
 #+end_src
 ** Undo tree
@@ -3311,16 +3370,16 @@ npm install darkreader
   (dashboard-navigator-buttons
    (if (featurep 'all-the-icons)
        `(((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust -0.05)
-           "M-EMACS" "Browse My EMACS Homepage"
+           "My Emacs Github" "Browse My EMACS Homepage"
            (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
           (,(all-the-icons-fileicon "elisp" :height 1.0 :v-adjust -0.1)
-           "Configuration" "" (lambda (&rest _) (edit-configs)))
+           "Emacs Configuration" "" (lambda (&rest _) (edit-configs)))
           (,(all-the-icons-faicon "cogs" :height 1.0 :v-adjust -0.1)
-           "Update" "" (lambda (&rest _) (auto-package-update-now)))))
-     `((("" "M-EMACS" "Browse My EMACS Homepage"
+           "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))
+     `((("" "My Emacs Github" "Browse My EMACS Homepage"
          (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
-        ("" "Configuration" "" (lambda (&rest _) (edit-configs)))
-        ("" "Update" "" (lambda (&rest _) (auto-package-update-now)))))))
+        ("" "Emacs Configuration" "" (lambda (&rest _) (edit-configs)))
+        ("" "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))))
   )
 #+end_src
 ** Yasnippet
@@ -3329,12 +3388,12 @@ npm install darkreader
   :diminish yas-minor-mode
   :init
   (use-package yasnippet-snippets :ensure t :after yasnippet)
-  :hook ((prog-mode LaTeX-mode org-mode) . yas-minor-mode)
-  :bind
-  ;; (:map yas-minor-mode-map ("C-c C-n" . yas-expand-from-trigger-key))
-  (:map yas-keymap
-        (("TAB" . smarter-yas-expand-next-field)
-         ([(tab)] . smarter-yas-expand-next-field)))
+  :hook ((prog-mode LaTeX-mode) . yas-minor-mode) ;; for org-mode, we have tempo
+  ;; :bind
+  ;; ;; (:map yas-minor-mode-map ("C-c C-n" . yas-expand-from-trigger-key))
+  ;; (:map yas-keymap
+  ;;       (("TAB" . smarter-yas-expand-next-field)
+  ;;        ([(tab)] . smarter-yas-expand-next-field)))
   :config
   (yas-reload-all)
   (defun smarter-yas-expand-next-field ()
@@ -3365,6 +3424,10 @@ npm install darkreader
 ;; ESC-ESC-i to open index.org
 (global-set-key (kbd "\e\ei")
                 (lambda () (interactive) (find-file "~/org/index.org")))
+
+;; ESC-ESC-e to open emacs-config.org
+(global-set-key (kbd "\e\ee")
+                (lambda () (interactive) (edit-configs)))
 
 ;; ESC-ESC-f to use rg to search in org file
 (global-set-key (kbd "\e\ef")
