@@ -2701,14 +2701,14 @@ Magit
            (unless file-name
              (user-error "LSP:: specify `:file' property to enable"))
 
-           (setq buffer-file-name file-name)
+           (setq-local buffer-file-name file-name)
+           (setq-local lsp-buffer-uri (->> info caddr (alist-get :file) lsp--path-to-uri))
+           ;; (setq buffer-file-name file-name)
            (lsp)
            ))
        (put ',intern-pre 'function-documentation
             (format "Enable LSP mode in the buffer of org source block (%s)."
                     (upcase ,lang)))
-
-       (setq lsp-headerline-breadcrumb-mode nil)
 
        (if (fboundp ',edit-pre)
            (advice-add ',edit-pre :after ',intern-pre)
@@ -2720,7 +2720,7 @@ Magit
                         (upcase ,lang))))))))
 
 (defvar org-babel-lang-list
-  '("python" "sh" "sql"))
+  '("python" "ipython" "sh" "sql"))
 (dolist (lang org-babel-lang-list)
   (eval `(lsp-org-babel-enable ,lang)))
 #+end_src
@@ -2810,7 +2810,7 @@ This Server supports automatic install (need has npm installed as dependency). I
                          (require 'lsp-pyright)
                          (lsp-deferred)))
   :init (when (executable-find "python3")
-          (setq lsp-pyright-python-executable-cmd "python3")))
+          (setq lsp-pyright-python-executable-cmd "/usr/local/opt/python/bin/python3")))
 #+end_src
 ** TODO Dap mode
 ** EIN settings
