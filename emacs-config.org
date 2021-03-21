@@ -411,7 +411,20 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
   (doom-themes-visual-bell-config)
   ;; Corrects (and improves) org-mode's native fontification.
   (doom-themes-org-config)
-  (load-theme 'doom-one t)
+  ;; (load-theme 'doom-one t)
+  ;; (load-theme 'doom-solarized-dark t)
+  ;; (load-theme 'doom-solarized-light t)
+  ;; (load-theme 'doom-dark+ t)
+  ;; (load-theme 'doom-one t)
+  ;; (load-theme 'doom-one-light t)
+  ;; (load-theme 'doom-nord t)
+  (load-theme 'doom-vibrant t)
+  ;; (load-theme 'doom-zenburn t)
+  ;; (load-theme 'doom-spacegrey t)
+  ;; (load-theme 'doom-gruvbox t)
+  ;; (load-theme 'doom-dracula t)
+  ;; (load-theme 'doom-molokai t)
+  ;; (load-theme 'doom-monokai-pro t)
   (defun switch-theme ()
     "An interactive funtion to switch themes."
     (interactive)
@@ -1315,6 +1328,7 @@ Other related settings makes ivy more beautiful.
   (mode-line ((t (:height 0.85))))
   (mode-line-inactive ((t (:height 0.85))))
   :custom
+  (inhibit-compacting-font-caches t)
   (doom-modeline-height 15)
   (doom-modeline-bar-width 6)
   ;; (doom-modeline-lsp t)
@@ -2359,7 +2373,7 @@ If all failed, try to complete the common part with `company-complete-common'"
   :ensure t
   :after company
   :config
-  (setq company-quickhelp-idle-delay 0.1)
+  (setq company-quickhelp-idle-delay 0.5)
   (company-quickhelp-mode 1))
 #+end_src
 ** company box frontend
@@ -2461,6 +2475,13 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
         (setq candidates-tabnine (nreverse candidates-tabnine))
         (nconc (seq-take candidates-tabnine 3)
                (seq-take candidates-lsp 6))))))
+#+end_src
+** Others
+*** Better sorting and filtering.
+#+begin_src emacs-lisp
+(use-package company-prescient
+  :ensure t
+  :init (company-prescient-mode 1))
 #+end_src
 * Development settings
 ** Git settings
