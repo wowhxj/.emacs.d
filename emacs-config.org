@@ -380,10 +380,15 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
 #+end_src
 ** Font settings
 #+begin_src emacs-lisp
-;; set font and size
-(set-face-attribute 'default nil :height 160)
-(set-frame-font "Microsoft YaHei Mono 16")
-;; (set-fontset-font "fontset-default" 'han '("Microsoft YaHei" . "unicode-bmp")) ;; set chinese font
+;; set english and chinese font and size
+(defun set-font (english chinese english-size chinese-size)
+  (set-face-attribute 'default nil :font
+                      (format   "%s:pixelsize=%d"  english english-size))
+  (dolist (charset '(kana han symbol cjk-misc bopomofo))
+    (set-fontset-font (frame-parameter nil 'font) charset
+                      (font-spec :family chinese :size chinese-size))))
+
+(set-font   "Source Code Pro" "WenQuanYi Zen Hei Mono" 14 16)
 #+end_src
 ** Theme settings
 #+begin_src emacs-lisp
