@@ -24,10 +24,6 @@ Make startup faster by reducing the frequency of garbage collection and then use
   (setq gc-cons-threshold (* 50 1000 1000)
         gc-cons-percentage 0.1
         file-name-handler-alist default-file-name-handler-alist)))
-
-;; Increase the amount of data from the process
-;; `lsp-mode' gains
-(setq read-process-output-max (* 1024 1024))
 #+end_src
 * Native Compilation
 #+begin_src emacs-lisp
@@ -403,7 +399,24 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
   :ensure t
   :config
   ;; (load-theme 'apropospriate-light t)
-  (load-theme 'solarized-dark t))
+  ;; (load-theme 'solarized-dark t)
+  )
+
+(use-package doom-themes
+  :ensure t
+  :custom-face
+  (cursor ((t (:background "BlanchedAlmond"))))
+  :config
+  ;; flashing mode-line on errors
+  (doom-themes-visual-bell-config)
+  ;; Corrects (and improves) org-mode's native fontification.
+  (doom-themes-org-config)
+  (load-theme 'doom-one t)
+  (defun switch-theme ()
+    "An interactive funtion to switch themes."
+    (interactive)
+    (disable-theme (intern (car (mapcar #'symbol-name custom-enabled-themes))))
+    (call-interactively #'load-theme)))
 #+end_src
 ** Optimize editing experience
 Remove useless whitespace before saving.
@@ -1559,7 +1572,7 @@ otherwise use the subtree title."
   (org-src-fontify-natively t)
   (org-src-tab-acts-natively t)
   (org-src-preserve-indentation t)
-  (org-src-window-setup 'current-window)
+  (org-src-window-setup 'reorganize-frame)
   (org-confirm-babel-evaluate nil)
   (org-edit-src-content-indentation 0)
   (org-src-lang-modes '(("C"            . c)
@@ -1568,7 +1581,7 @@ otherwise use the subtree title."
                         ("cpp"          . c++)
                         ("dot"          . graphviz-dot)
                         ("elisp"        . emacs-lisp)
-                        ("ipython"      . python)
+                        ;; ("ipython"      . ipython)
                         ("python"       . python)
                         ("ein"          . ein)
                         ("mermaid"      . mermaid)
@@ -1585,7 +1598,7 @@ otherwise use the subtree title."
                               (gnuplot         . t) ;; enable gnuplot to draw 2d/3d graphs
                               (ocaml           . t)
                               (python          . t)
-                              (ipython         . t)
+                              ;; (ipython         . t)
                               (ein             . t)
                               (mermaid         . t)
                               (shell           . t)
@@ -1599,27 +1612,28 @@ otherwise use the subtree title."
 (use-package ob-browser
   :ensure t)
 #+end_src
-*** Enable iython src block
+*** Enable ipython src block (abondoned)
 #+begin_src emacs-lisp
 ;; support ipython eval
 ;; need to hack ob-ipython.el due to following:
 ;; https://github.com/gregsexton/ob-ipython/issues/161
 ;; also need to compile again to make ob-ipython.elc work
-(use-package ob-ipython
-  :ensure t
-)
+;; (use-package ob-ipython
+;;   :ensure t
+;;   :config
+;; )
 
 ;; set ob-iptyhon resources dir. default is: ./obipy-resources/
 ;; the directory is consistent with image paste directory.
 ;; run this func before export any image generation
-(defun my-set-ob-ipython-resource-dir ()
-  "set ob-ipython image directory"
-  (interactive)
-  (setq foldername (concat (buffer-file-name) ".assets/"))
-  (if (not (file-exists-p foldername))
-      (mkdir foldername))
-  (setq ob-ipython-resources-dir foldername)
-  )
+;; (defun my-set-ob-ipython-resource-dir ()
+;;   "set ob-ipython image directory"
+;;   (interactive)
+;;   (setq foldername (concat (buffer-file-name) ".assets/"))
+;;   (if (not (file-exists-p foldername))
+;;       (mkdir foldername))
+;;   (setq ob-ipython-resources-dir foldername)
+;;   )
 #+end_src
 ** Capture settings
 *** Basic settings
@@ -1775,14 +1789,14 @@ otherwise use the subtree title."
           ("c" . "comment")
           ("v" . "verse")
           ("html" . "src html")
-          ("sql" . "src sql :results raw drawer :engine mysql :database midea_cs")
+          ("sql" . "src sql :results raw drawer :engine mysql :database midea_cs :file-name temp.sql")
           ("exhtml" . "export html")
           ("exmd" . "export md")
           ("el" . "src emacs-lisp")
-          ("sh" . "src shell")
+          ("sh" . "src shell :file-name: temp.sh")
           ("json" . "src json")
-          ("ipy" . "src ipython :session :exports both :results raw drawer :file \"/Users/randolph/Documents/sandbox/midea_cs/data_processing/excel_processing.py\"")
-          ("py" . "src python :results output :file \"/Users/randolph/Documents/sandbox/midea_cs/data_processing/excel_processing.py\""))))
+          ;; ("ipy" . "src ipython :session :exports both :results raw drawer :file \"/Users/randolph/Documents/sandbox/midea_cs/data_processing/excel_processing.py\"")
+          ("p" . "src python :results output :file-name temp.py"))))
 #+end_src
 ** Org clock
 #+begin_src emacs-lisp
@@ -2296,11 +2310,10 @@ ARGS are passed to the PROGRAM."
   (setq global-company-mode '(not erc-mode message-mode help-mode gud-mode))
 
   :custom
-  (company-idle-delay 0.1)
-  ;; Easy navigation to candidates with M-<n>
+  (company-idle-delay 0.3)
   (company-show-numbers t)
   (company-require-match nil)
-  (company-minimum-prefix-length 2)
+  (company-minimum-prefix-length 3)
   (company-selection-wrap-around t)
   (company-tooltip-align-annotations t)
   (company-tooltip-flip-when-above t)
@@ -2354,15 +2367,16 @@ If all failed, try to complete the common part with `company-complete-common'"
 (use-package company-box
   :ensure t
   :diminish
+  :if (display-graphic-p)
   :defines company-box-icons-all-the-icons
   :hook (company-mode . company-box-mode)
-  :init (setq company-box-backends-colors nil
-              company-box-doc-delay 0.3)
+  :custom
+  (company-box-backends-colors nil)
   :config
   (with-no-warnings
     ;; Prettify icons
     (defun my-company-box-icons--elisp (candidate)
-      (when (or (derived-mode-p 'emacs-lisp-mode) (derived-mode-p 'lisp-mode))
+      (when (derived-mode-p 'emacs-lisp-mode)
         (let ((sym (intern candidate)))
           (cond ((fboundp sym) 'Function)
                 ((featurep sym) 'Module)
@@ -2372,38 +2386,40 @@ If all failed, try to complete the common part with `company-complete-common'"
                 (t . nil)))))
     (advice-add #'company-box-icons--elisp :override #'my-company-box-icons--elisp))
 
-  (declare-function all-the-icons-faicon 'all-the-icons)
-  (declare-function all-the-icons-material 'all-the-icons)
-  (declare-function all-the-icons-octicon 'all-the-icons)
-  (setq company-box-icons-all-the-icons
-        `((Unknown . ,(all-the-icons-material "find_in_page" :height 0.8 :v-adjust -0.15))
-          (Text . ,(all-the-icons-faicon "text-width" :height 0.8 :v-adjust -0.02))
-          (Method . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
-          (Function . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
-          (Constructor . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
-          (Field . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
-          (Variable . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
-          (Class . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
-          (Interface . ,(all-the-icons-material "share" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
-          (Module . ,(all-the-icons-material "view_module" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
-          (Property . ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02))
-          (Unit . ,(all-the-icons-material "settings_system_daydream" :height 0.8 :v-adjust -0.15))
-          (Value . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
-          (Enum . ,(all-the-icons-material "storage" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
-          (Keyword . ,(all-the-icons-material "filter_center_focus" :height 0.8 :v-adjust -0.15))
-          (Snippet . ,(all-the-icons-material "format_align_center" :height 0.8 :v-adjust -0.15))
-          (Color . ,(all-the-icons-material "palette" :height 0.8 :v-adjust -0.15))
-          (File . ,(all-the-icons-faicon "file-o" :height 0.8 :v-adjust -0.02))
-          (Reference . ,(all-the-icons-material "collections_bookmark" :height 0.8 :v-adjust -0.15))
-          (Folder . ,(all-the-icons-faicon "folder-open" :height 0.8 :v-adjust -0.02))
-          (EnumMember . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15))
-          (Constant . ,(all-the-icons-faicon "square-o" :height 0.8 :v-adjust -0.1))
-          (Struct . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
-          (Event . ,(all-the-icons-octicon "zap" :height 0.8 :v-adjust 0 :face 'all-the-icons-orange))
-          (Operator . ,(all-the-icons-material "control_point" :height 0.8 :v-adjust -0.15))
-          (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))
-          (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))
-        company-box-icons-alist 'company-box-icons-all-the-icons))
+  (when (and (display-graphic-p)
+             (require 'all-the-icons nil t))
+    (declare-function all-the-icons-faicon 'all-the-icons)
+    (declare-function all-the-icons-material 'all-the-icons)
+    (declare-function all-the-icons-octicon 'all-the-icons)
+    (setq company-box-icons-all-the-icons
+          `((Unknown . ,(all-the-icons-material "find_in_page" :height 0.8 :v-adjust -0.15))
+            (Text . ,(all-the-icons-faicon "text-width" :height 0.8 :v-adjust -0.02))
+            (Method . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
+            (Function . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
+            (Constructor . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
+            (Field . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
+            (Variable . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
+            (Class . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
+            (Interface . ,(all-the-icons-material "share" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
+            (Module . ,(all-the-icons-material "view_module" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
+            (Property . ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02))
+            (Unit . ,(all-the-icons-material "settings_system_daydream" :height 0.8 :v-adjust -0.15))
+            (Value . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
+            (Enum . ,(all-the-icons-material "storage" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
+            (Keyword . ,(all-the-icons-material "filter_center_focus" :height 0.8 :v-adjust -0.15))
+            (Snippet . ,(all-the-icons-material "format_align_center" :height 0.8 :v-adjust -0.15))
+            (Color . ,(all-the-icons-material "palette" :height 0.8 :v-adjust -0.15))
+            (File . ,(all-the-icons-faicon "file-o" :height 0.8 :v-adjust -0.02))
+            (Reference . ,(all-the-icons-material "collections_bookmark" :height 0.8 :v-adjust -0.15))
+            (Folder . ,(all-the-icons-faicon "folder-open" :height 0.8 :v-adjust -0.02))
+            (EnumMember . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15))
+            (Constant . ,(all-the-icons-faicon "square-o" :height 0.8 :v-adjust -0.1))
+            (Struct . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
+            (Event . ,(all-the-icons-octicon "zap" :height 0.8 :v-adjust 0 :face 'all-the-icons-orange))
+            (Operator . ,(all-the-icons-material "control_point" :height 0.8 :v-adjust -0.15))
+            (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))
+            (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))
+          company-box-icons-alist 'company-box-icons-all-the-icons)))
 #+end_src
 ** Company tabnine
 See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-install-binary= to download binaries first.
@@ -2421,7 +2437,7 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
                       (setq company-tabnine-max-num-results 5)
                       (add-to-list 'company-transformers 'company//sort-by-tabnine t)
                       (add-to-list 'company-backends '(company-capf :with company-tabnine :separate))))
-   (kill-emacs . company-tabnine-kill-process)
+  (kill-emacs . company-tabnine-kill-process)
   :config
   ;; Enable TabNine on default
   (add-to-list 'company-backends #'company-tabnine)
@@ -2575,7 +2591,9 @@ Magit
   (read-process-output-max (* 1024 1024))
   (lsp-eldoc-hook nil)
   :bind (:map lsp-mode-map ("C-c C-f" . lsp-format-buffer))
-  :hook ((prog-mode . lsp)
+  :hook ((prog-mode . (lambda ()
+                        (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
+                          (lsp-deferred))))
          (lsp-mode . (lambda ()
                        ;; Integrate `which-key'
                        (lsp-enable-which-key-integration)))
@@ -2611,6 +2629,13 @@ Magit
   (lsp-ui-sideline-ignore-duplicate t)
   (lsp-ui-sideline-show-code-actions nil)
   :config
+  ;; `C-g'to close doc
+  (advice-add #'keyboard-quit :before #'lsp-ui-doc-hide)
+  ;; Reset `lsp-ui-doc-background' after loading theme
+  (add-hook 'after-load-theme-hook
+            (lambda ()
+              (setq lsp-ui-doc-border (face-foreground 'font-lock-comment-face))
+              (set-face-background 'lsp-ui-doc-background (face-background 'tooltip))))
   ;; Use lsp-ui-doc-webkit only in GUI
   (if (display-graphic-p)
       (setq lsp-ui-doc-use-webkit t))
@@ -2623,8 +2648,8 @@ Magit
 #+begin_src emacs-lisp
 ;; (use-package company-lsp
 ;;   :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp"))
-;;   :hook (lsp-mode . (lambda ()
-;;                       (setq-local company-backends 'company-lsp)))
+;;   ;; hook (lsp-mode . (lambda ()
+;;   ;;                  (setq-local company-backends 'company-lsp)))
 ;;   :config
 ;;   ;; lsp hack due to: https://github.com/tigersoldier/company-lsp/issues/145
 ;;   (defun lsp--sort-completions (completions)
@@ -2633,7 +2658,7 @@ Magit
 ;;     (lsp-completion--annotate item))
 ;;   (defun lsp--resolve-completion (item)
 ;;     (lsp-completion--resolve item))
-;;   ;; (push 'company-lsp company-backends)
+;;   (push 'company-lsp company-backends)
 ;;   )
 #+end_src
 *** lsp ivy
@@ -2691,43 +2716,46 @@ Magit
           (concat typestr (lsp-render-symbol-information sym ".") pathstr)))
       (advice-add #'lsp-ivy--format-symbol-match :override #'my-lsp-ivy--format-symbol-match))))
 #+end_src
-*** enable lsp mode in babel src block
+*** TODO Dap mode
+*** enable lsp mode in babel src block (abondoned, lsp mode has an official function lsp-org to support this)
 #+begin_src emacs-lisp
-;; Enable LSP in org babel
+;; Enable LSP in org babel (method 1)
 ;; https://github.com/emacs-lsp/lsp-mode/issues/377
-(cl-defmacro lsp-org-babel-enable (lang)
-  "Support LANG in org source code block."
-  (cl-check-type lang stringp)
-  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
-         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
-    `(progn
-       (defun ,intern-pre (info)
-         (let ((file-name (->> info caddr (alist-get :file))))
-           (unless file-name
-             (user-error "LSP:: specify `:file' property to enable"))
+;; (cl-defmacro lsp-org-babel-enable (lang)
+;;   "Support LANG in org source code block."
+;;   (cl-check-type lang stringp)
+;;   (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+;;          (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+;;     `(progn
+;;        (defun ,intern-pre (info)
+;;          (let ((file-name (->> info caddr (alist-get :file))))
+;;            (unless file-name
+;;              (user-error "LSP:: specify `:file' property to enable"))
+;;            (setq buffer-file-name file-name)
+;;            (lsp-deferred)
+;;            ))
+;;        (put ',intern-pre 'function-documentation
+;;             (format "Enable LSP mode in the buffer of org source block (%s)."
+;;                     (upcase ,lang)))
+;;        (if (fboundp ',edit-pre)
+;;            (advice-add ',edit-pre :after ',intern-pre)
+;;          (progn
+;;            (defun ,edit-pre (info)
+;;              (,intern-pre info))
+;;            (put ',edit-pre 'function-documentation
+;;                 (format "Prepare local buffer environment for org source block (%s)."
+;;                         (upcase ,lang))))))))
+;; (defvar org-babel-lang-list
+;;   '("python" "sh" "sql"))
+;; (dolist (lang org-babel-lang-list)
+;;   (eval `(lsp-org-babel-enable ,lang)))
 
-           (setq-local buffer-file-name file-name)
-           (setq-local lsp-buffer-uri (->> info caddr (alist-get :file) lsp--path-to-uri))
-           ;; (setq buffer-file-name file-name)
-           (lsp)
-           ))
-       (put ',intern-pre 'function-documentation
-            (format "Enable LSP mode in the buffer of org source block (%s)."
-                    (upcase ,lang)))
-
-       (if (fboundp ',edit-pre)
-           (advice-add ',edit-pre :after ',intern-pre)
-         (progn
-           (defun ,edit-pre (info)
-             (,intern-pre info))
-           (put ',edit-pre 'function-documentation
-                (format "Prepare local buffer environment for org source block (%s)."
-                        (upcase ,lang))))))))
-
-(defvar org-babel-lang-list
-  '("python" "ipython" "sh" "sql"))
-(dolist (lang org-babel-lang-list)
-  (eval `(lsp-org-babel-enable ,lang)))
+;; Enable LSP in org babel (method 2)
+;; (defun org-babel-edit-prep:python (babel-info)
+;;   (setq-local buffer-file-name (->> babel-info caddr (alist-get :file)))
+;;   (setq-local lsp-buffer-uri (->> babel-info caddr (alist-get :file) lsp--path-to-uri))
+;;   (lsp-deferred)
+;;   )
 #+end_src
 ** Python settings
 *** Basic python settings
@@ -2739,10 +2767,7 @@ Magit
 (use-package python
   :ensure nil
   :mode ("\\.py\\'" . python-mode)
-  :hook (
-         ;; (python-mode . my-run-python)
-         (inferior-python-mode . my/buffer-auto-close)
-         )
+  :hook (inferior-python-mode . my/buffer-auto-close)
   :init
   ;; Disable readline based native completion
   (setq python-shell-completion-native-enable nil)
@@ -2751,6 +2776,7 @@ Magit
 	      python-indent 4
 	      indent-tabs-mode nil
 	      default-tab-width 4)
+  (setq flycheck-python-pycompile-executable "python3")
   (setq python-shell-interpreter "jupyter-console"
         python-shell-interpreter-args "--simple-prompt --kernel=Python3"
         python-shell-prompt-detect-failure-warning nil)
@@ -2793,31 +2819,34 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
 
 2. Then add =lsp-mode= configuration in Emacs:
 #+begin_src emacs-lisp
-;; (use-package lsp-python-ms
-;;   :ensure t
-;;   :demand
-;;   :hook ((python-mode . (lambda ()
-;;                         (require 'lsp-python-ms)
-;;                         (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
-;;                           (lsp-deferred)))))
-;;   :init
-;;   (setq lsp-python-ms-auto-install-server t)
-;;   (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
-;;   (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
-;;   )
+(use-package lsp-python-ms
+  :ensure t
+  :demand
+  :hook ((python-mode . (lambda ()
+                          (require 'lsp-python-ms)
+                          (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)))))
+  :init
+  (setq lsp-python-ms-auto-install-server t)
+  (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
+  (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
+  )
 #+end_src
 **** Option 3: pyright
 This Server supports automatic install (need has npm installed as dependency). Install this language server with M-x =lsp-install-server= =RET= =pyright= =RET=.
 #+begin_src emacs-lisp
-(use-package lsp-pyright
-  :ensure t
-  :hook (python-mode . (lambda ()
-                         (require 'lsp-pyright)
-                         (lsp-deferred)))
-  :init (when (executable-find "python3")
-          (setq lsp-pyright-python-executable-cmd "/usr/local/opt/python/bin/python3")))
+;; (use-package lsp-pyright
+;;   :ensure t
+;;   ;; :preface
+;;   ;; ;; Use yapf to format
+;;   ;; (defun lsp-pyright-format-buffer ()
+;;   ;;   (interactive)
+;;   ;;   (when (and (executable-find "yapf") buffer-file-name)
+;;   ;;     (call-process "yapf" nil nil nil "-i" buffer-file-name)))
+;;   :hook (python-mode . (lambda ()
+;;                          (require 'lsp-pyright)))
+;;   :init (when (executable-find "python3")
+;;           (setq lsp-pyright-python-executable-cmd "/usr/local/opt/python/bin/python3")))
 #+end_src
-** TODO Dap mode
 ** EIN settings
 #+begin_src emacs-lisp
 (use-package ein
