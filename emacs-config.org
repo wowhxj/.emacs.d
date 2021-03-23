@@ -375,6 +375,7 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
 (add-hook 'org-mode-hook 'add-pretty-lambda)
 #+end_src
 ** Font settings
+Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
 #+begin_src emacs-lisp
 ;; set english and chinese font and size
 (defun set-font (english chinese english-size chinese-size)
@@ -460,6 +461,37 @@ The original function deletes trailing whitespace of the current line."
     (delete-trailing-whitespace-except-current-line)))
 
 (add-hook 'before-save-hook #'smart-delete-trailing-whitespace)
+#+end_src
+** Notifications
+#+begin_src emacs-lisp
+(use-package notifications
+  :ensure nil
+  :when (eq system-type 'darwin)
+  :commands notify-send
+  :config
+  (defun notify-send (&rest params)
+    "Send notifications via `terminal-notifier'."
+    (let ((title (plist-get params :title))
+          (body (plist-get params :body)))
+      (start-process "terminal-notifier"
+                     nil
+                     "terminal-notifier"
+                     "-group" "Emacs"
+                     "-title" title
+                     "-message" body
+                     "-activate" "org.gnu.Emacs"))))
+(use-package notifications
+  :ensure nil
+  :unless (memq system-type '(gnu/linux darwin))
+  :commands notify-send
+  :config
+  (defalias 'notify-send 'ignore))
+#+end_src
+** Keep .emacs.d directory clean
+#+begin_src emacs-lisp
+(use-package no-littering
+  :ensure t
+  :demand t)
 #+end_src
 * Backup settings
 Don't backup because we have git. Auto save which is useful.
@@ -1341,13 +1373,13 @@ Other related settings makes ivy more beautiful.
   (doom-modeline-major-mode-color-icon t))
 #+end_src
 * Org mode settings
-** Set the org block background to darker 3%.
+** Set the org block background to darker 5%.
 #+begin_src emacs-lisp
 (require 'color)
 (defun set-block-bg()
   (set-face-attribute 'org-block nil :background
                       (color-darken-name
-                       (face-attribute 'default :background) 3)))
+                       (face-attribute 'default :background) 5)))
 #+end_src
 ** Org basic settings
 #+begin_src emacs-lisp
@@ -1571,6 +1603,43 @@ otherwise use the subtree title."
                              (:name "Overdue" :deadline past :face error)
                              (:name "Due Soon" :deadline future)
                              (:name "Scheduled Earlier" :scheduled past))))
+
+;; holidays settings
+(use-package calendar
+  :ensure nil
+  :hook (calendar-today-visible . calendar-mark-today)
+  :custom
+  (calendar-chinese-all-holidays-flag t)
+  (holiday-local-holidays `((holiday-fixed 3 8  "Women's Day")
+                            (holiday-fixed 3 12 "Arbor Day")
+                            ,@(cl-loop for i from 1 to 3
+                                       collect `(holiday-fixed 5 ,i "International Workers' Day"))
+                            (holiday-fixed 5 4  "Chinese Youth Day")
+                            (holiday-fixed 6 1  "Children's Day")
+                            (holiday-fixed 9 10 "Teachers' Day")
+                            ,@(cl-loop for i from 1 to 7
+                                       collect `(holiday-fixed 10 ,i "National Day"))
+                            (holiday-fixed 10 24 "Programmers' Day")
+                            (holiday-fixed 11 11 "Singles' Day")))
+  (holiday-other-holidays '((holiday-fixed 4 22 "Earth Day")
+                            (holiday-fixed 4 23 "World Book Day")
+                            (holiday-sexp '(if (or (zerop (% year 400))
+                                                   (and (% year 100) (zerop (% year 4))))
+                                               (list 9 12 year)
+                                             (list 9 13 year))
+                                          "World Programmers' Day")
+                            (holiday-fixed 10 10 "World Mental Health Day")))
+  (calendar-holidays `(,@holiday-general-holidays
+                       ,@holiday-oriental-holidays
+                       ,@holiday-christian-holidays
+                       ,@holiday-other-holidays
+                       ,@holiday-local-holidays))
+  (calendar-mark-holidays-flag t)
+  (calendar-mark-diary-entries-flag nil)
+  ;; Prefer +0800 over CST
+  (calendar-time-zone-style 'numeric)
+  ;; year/month/day
+  (calendar-date-style 'iso))
 #+end_src
 ** Src settings
 *** src basic settings
@@ -1613,7 +1682,7 @@ otherwise use the subtree title."
                               (ocaml           . t)
                               (python          . t)
                               ;; (ipython         . t)
-                              (ein             . t)
+                              ;; (ein             . t)
                               (mermaid         . t)
                               (shell           . t)
                               (browser         . t)
@@ -1979,11 +2048,12 @@ otherwise use the subtree title."
 (define-key org-mode-map (kbd "s-V") 'my-org-insert-clipboard-image)
 #+end_src
 ** Reveal settings
+*** Reveal basic settings
 #+begin_src emacs-lisp
 (use-package ox-reveal
   :ensure t
   :config
-  (setq org-reveal-hlevel 999)
+  (setq org-reveal-hlevel 2)
   ;; Avalable themes: night, black, white, league, beige, sky, serif, simple, solarized, blood, moon
   (setq org-reveal-theme "night")
   ;; can also set root to a CDN cloud: https://cdn.jsdelivr.net/npm/reveal.js
@@ -1992,6 +2062,13 @@ otherwise use the subtree title."
   (setq org-reveal-mathjax t)
   )
 #+end_src
+*** force split
+If one heading has too many things to fit into one slide, you can split the contents into multiple vertical slides manually, by inserting:
+#+begin_example
+#+REVEAL: split
+#+end_example
+*** Raw HTML in slide
+Besides the Org contents, you can embed raw HTML contents into slides by placing a =#+REVEAL_HTML= keyword.
 ** Mermaid settings
 #+begin_src emacs-lisp
 (use-package ob-mermaid
@@ -2020,8 +2097,45 @@ otherwise use the subtree title."
 (setq org-mobile-directory "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/")
 (setq org-mobile-inbox-for-pull "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/")
 #+end_src
-** TODO Org Presentation
-[[https://github.com/daviwil/dotfiles/blob/master/Emacs.org#org-mode][org-present]]
+** Org Presentation
+Do presentation in Emacs
+#+begin_src emacs-lisp
+(use-package org-present
+  :ensure t
+  :commands (org-present)
+  :config
+  (defun org-present-on ()
+    (org-present-big)
+    (org-display-inline-images)
+    (org-present-hide-cursor)
+    ;; (display-line-numbers-mode -1)
+    (org-present-read-only))
+  (defun org-present-off ()
+    (org-present-small)
+    (org-present-show-cursor)
+    (unless org-startup-with-inline-images
+      (org-remove-inline-images))
+    ;; (display-line-numbers-mode)
+    (org-present-read-write))
+  (add-hook 'org-present-mode-hook #'org-present-on)
+  (add-hook 'org-present-mode-quit-hook #'org-present-off)
+  ;; Redefine org-present to call org-present-narrow after running hooks
+  (defun org-present ()
+    "init org present."
+    (interactive)
+    (setq org-present-mode t)
+    (org-present-add-overlays)
+    (run-hooks 'org-present-mode-hook)
+    (org-present-narrow)
+    (org-present-run-after-navigate-functions))
+  :bind (:map org-present-mode-keymap
+         ("C-p" . org-present-prev)
+         ("C-n" . org-present-next))
+         ;; ("<left>"  . org-present-prev)
+         ;; ("<right>" . org-present-next)
+         ;;("q"       . org-present-quit))
+  )
+#+end_src
 ** Automatically “Tangle” on save
 See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--org-mode-for-literate-programming][Literate configuration]] for details.
 #+begin_src emacs-lisp
@@ -2058,7 +2172,6 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
   (org-table-export-default-format "orgtbl-to-csv")
   (org-table-formula-constants '(("PI" . "3.14159265358979323846264"))))
 #+end_src
-
 * Markdown settings
 #+begin_src emacs-lisp
 (use-package markdown-mode
@@ -2485,7 +2598,7 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
 #+end_src
 * Development settings
 ** Git settings
-Magit
+*** Magit
 #+begin_src emacs-lisp
 (use-package magit
   :ensure t
@@ -2496,6 +2609,19 @@ Magit
   :custom
   (magit-diff-refine-hunk t)
   (magit-ediff-dwim-show-on-hunks t))
+#+end_src
+*** Visual Ediff
+#+begin_src emacs-lisp
+;; Visual diff interface
+(use-package ediff
+  :ensure nil
+  :hook (ediff-quit . tab-bar-history-back)
+  :custom
+  (ediff-diff-options "-w") ;; turn off whitespace checking
+  (ediff-highlight-all-diffs t)
+  (ediff-window-setup-function 'ediff-setup-windows-plain)
+  (ediff-split-window-function 'split-window-horizontally)
+  (ediff-merge-split-window-function 'split-window-horizontally))
 #+end_src
 ** Projectile settings
 #+begin_src emacs-lisp
@@ -2561,16 +2687,37 @@ Magit
 #+begin_src emacs-lisp
 (use-package flycheck
   :ensure t
-  :defer t
-  :hook ((lsp-mode . flycheck-mode)
-         ((prog-mode python-mode) . flycheck-mode)
-         )
-)
+  :diminish
+  :commands flycheck-redefine-standard-error-levels
+  ;; :hook (after-init . global-flycheck-mode)
+  :init (setq ;; flycheck-global-modes
+              ;; '(not text-mode outline-mode fundamental-mode lisp-interaction-mode lsp-mode python-mode org-mode diff-mode shell-mode eshell-mode term-mode vterm-mode)
+              flycheck-emacs-lisp-load-path 'inherit
+              flycheck-indication-mode (if (display-graphic-p)
+                                           'right-fringe
+                                         'right-margin)
+              ;; Only check while saving and opening files
+              flycheck-check-syntax-automatically '(save mode-enabled))
+  :config
+  ;; Prettify indication styles
+  (when (fboundp 'define-fringe-bitmap)
+    (define-fringe-bitmap 'flycheck-fringe-bitmap-arrow
+      [16 48 112 240 112 48 16] nil nil 'center))
+  (flycheck-redefine-standard-error-levels "⏴" 'flycheck-fringe-bitmap-arrow)
 
-(use-package flymake
-  :ensure nil
-  :custom
-  (flymake-fringe-indicator-position 'right-fringe))
+  ;; Display Flycheck errors
+  (use-package flycheck-posframe
+    :ensure t
+    :custom-face
+    (flycheck-posframe-face ((t (:foreground ,(face-foreground 'success)))))
+    (flycheck-posframe-info-face ((t (:foreground ,(face-foreground 'success)))))
+    :hook (flycheck-mode . flycheck-posframe-mode)
+    :init (setq flycheck-posframe-border-width 4
+                flycheck-posframe-inhibit-functions
+                '((lambda (&rest _) (bound-and-true-p company-backend)))))
+  (use-package flycheck-popup-tip
+    :ensure t
+    :hook (flycheck-mode . flycheck-popup-tip-mode)))
 #+end_src
 ** lsp mode
 *** lsp install and settings
@@ -2606,12 +2753,26 @@ Magit
    ((t :inherit lsp-headerline-breadcrumb-symbols-face
        :underline (:style wave :color ,(face-foreground 'success)))))
   :custom
-  (lsp-auto-guess-root nil)
+  (lsp-auto-guess-root t)
   (lsp-prefer-flymake nil) ; Use flycheck instead of flymake
-  (lsp-file-watch-threshold 2000)
   (read-process-output-max (* 1024 1024))
   (lsp-eldoc-hook nil)
-  :bind (:map lsp-mode-map ("C-c C-f" . lsp-format-buffer))
+  ;; (lsp-file-watch-threshold 2000)
+  (lsp-enable-file-watchers nil)         ;; performance matters
+  (lsp-enable-text-document-color nil)   ;; as above
+  (lsp-enable-symbol-highlighting nil)   ;; as above
+  (lsp-enable-on-type-formatting nil)    ;; as above
+  (lsp-enable-indentation nil)           ;; don't change my code without my permission
+  (lsp-keep-workspace-alive nil)         ;; auto kill lsp server
+  (lsp-headerline-breadcrumb-enable nil) ;; keep headline clean
+  (lsp-modeline-code-actions-enable nil) ;; keep modeline clean
+  (lsp-modeline-diagnostics-enable nil)  ;; as above
+  :bind (:map lsp-mode-map
+              ("C-c f" . lsp-format-region)
+              ("C-c d" . lsp-describe-thing-at-point)
+              ("C-c e" . lsp-execute-code-action)
+              ("C-c r" . lsp-rename)
+              )
   :hook ((prog-mode . (lambda ()
                         (unless (derived-mode-p 'emacs-lisp-mode 'lisp-mode)
                           (lsp-deferred))))
@@ -2646,6 +2807,7 @@ Magit
   (lsp-ui-doc-header t)
   (lsp-ui-doc-include-signature t)
   (lsp-ui-doc-border (face-foreground 'default))
+  ;; (lsp-ui-doc-position 'at-point)
   (lsp-ui-sideline-enable nil)
   (lsp-ui-sideline-ignore-duplicate t)
   (lsp-ui-sideline-show-code-actions nil)
@@ -2737,7 +2899,6 @@ Magit
           (concat typestr (lsp-render-symbol-information sym ".") pathstr)))
       (advice-add #'lsp-ivy--format-symbol-match :override #'my-lsp-ivy--format-symbol-match))))
 #+end_src
-*** TODO Dap mode
 *** enable lsp mode in babel src block (abondoned, lsp mode has an official function lsp-org to support this)
 #+begin_src emacs-lisp
 ;; Enable LSP in org babel (method 1)
@@ -2777,6 +2938,29 @@ Magit
 ;;   (setq-local lsp-buffer-uri (->> babel-info caddr (alist-get :file) lsp--path-to-uri))
 ;;   (lsp-deferred)
 ;;   )
+#+end_src
+** Dap mode
+1. install dependency
+#+begin_src shell :file-name: temp.sh
+pip install "ptvsd>=4.2"
+#+end_src
+2. dap mode configuration
+#+begin_src emacs-lisp
+(use-package dap-mode
+  :ensure t
+  :diminish
+  :bind
+  (:map dap-mode-map
+        (("<f12>" . dap-debug)
+         ("<f8>" . dap-continue)
+         ("<f9>" . dap-next)
+         ("<f10>" . dap-step-in)
+         ("<f11>" . dap-step-out)
+         ("<f7>" . dap-breakpoint-toggle)))
+  :config
+  (require 'dap-python) ;; to enable dap-python
+  (setq dap-auto-configure-features '(sessions locals controls tooltip))
+  )
 #+end_src
 ** Python settings
 *** Basic python settings
@@ -3033,13 +3217,101 @@ npm i -g vscode-html-languageserver-bin
   :ensure t
   :mode "\\.json\\'")
 #+end_src
+** Treemacs
+*** treemacs basic settings
+#+begin_src emacs-lisp
+(use-package treemacs
+  :ensure t
+  :init
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+  :custom
+  (treemacs-collapse-dirs 3)
+  (treemacs-deferred-git-apply-delay 0.5)
+  (treemacs-display-in-side-window t)
+  (treemacs-file-event-delay 5000)
+  (treemacs-file-follow-delay 0.2)
+  (treemacs-follow-after-init t)
+  (treemacs-follow-recenter-distance 0.1)
+  (treemacs-git-command-pipe "")
+  (treemacs-goto-tag-strategy 'refetch-index)
+  (treemacs-indentation 2)
+  (treemacs-indentation-string " ")
+  (treemacs-is-never-other-window nil)
+  (treemacs-max-git-entries 5000)
+  (treemacs-no-png-images nil)
+  (treemacs-no-delete-other-windows t)
+  (treemacs-project-follow-cleanup nil)
+  (treemacs-persist-file (expand-file-name ".cache/treemacs-persist" user-emacs-directory))
+  (treemacs-recenter-after-file-follow nil)
+  (treemacs-recenter-after-tag-follow nil)
+  (treemacs-show-cursor nil)
+  (treemacs-show-hidden-files t)
+  (treemacs-silent-filewatch nil)
+  (treemacs-silent-refresh nil)
+  (treemacs-sorting 'alphabetic-desc)
+  (treemacs-space-between-root-nodes t)
+  (treemacs-tag-follow-cleanup t)
+  (treemacs-tag-follow-delay 1.5)
+  (treemacs-width 35)
+  :config
+  ;; The default width and height of the icons is 22 pixels. If you are
+  ;; using a Hi-DPI display, uncomment this to double the icon size.
+  ;;(treemacs-resize-icons 44)
+  (treemacs-follow-mode t)
+  (treemacs-filewatch-mode t)
+  (treemacs-fringe-indicator-mode t)
+  :bind
+  (("M-0"       . treemacs-select-window)
+   ("C-x t 1"   . treemacs-delete-other-windows)
+   ("C-x t t"   . treemacs)
+   ("C-x t B"   . treemacs-bookmark)
+   ("C-x t C-t" . treemacs-find-file)
+   ("C-x t M-t" . treemacs-find-tag))
+  (:map treemacs-mode-map ("C-p" . treemacs-previous-line)))
+#+end_src
+*** treemacs magit
+#+begin_src emacs-lisp
+(use-package treemacs-magit
+  :defer t
+  :after (treemacs magit)
+  :ensure t)
+#+end_src
+*** treemacs projectile
+#+begin_src emacs-lisp
+(use-package treemacs-projectile
+  :defer t
+  :after (treemacs projectile)
+  :ensure t)
+#+end_src
+*** treemacs icon dired
+#+begin_src emacs-lisp
+(use-package treemacs-icons-dired
+  :after (treemacs dired)
+  :ensure t
+  :config (treemacs-icons-dired-mode))
+#+end_src
+** Development common settings
+#+begin_src emacs-lisp
+;; Highlight TODO
+(use-package hl-todo
+  :ensure t
+  :hook (after-init . global-hl-todo-mode)
+  :bind (:map hl-todo-mode-map
+         ("C-c t p" . hl-todo-previous)
+         ("C-c t n" . hl-todo-next)
+         ("C-c t o" . hl-todo-occur))
+  :config
+  (dolist (keyword '("BUG" "ISSUE" "NB"))
+    (cl-pushnew `(,keyword . ,(face-foreground 'error)) hl-todo-keyword-faces)))
+#+end_src
 * EAF settings
 EAF: Emacs Application Framework.
 ** download EAF (not needed, already in melpa)
 #+begin_src emacs-lisp
-(quelpa '(eaf :fetcher github
-              :repo  "manateelazycat/emacs-application-framework"
-              :files ("*")))
+;; (quelpa '(eaf :fetcher github
+;;               :repo  "manateelazycat/emacs-application-framework"
+;;               :files ("*")))
 #+end_src
 ** download dependencies
 For non-Mac system, we can use =M-x eaf-install-dependencies= to install depandencies.
@@ -3114,6 +3386,8 @@ npm install darkreader
   (eaf-bind-key take_photo "p" eaf-camera-keybinding)
   (eaf-bind-key nil "M-q" eaf-browser-keybinding)) ;; unbind, see more in the Wiki
 #+end_src
+* Mail settings
+
 * Useful tools
 ** Which-key
 #+begin_src emacs-lisp
