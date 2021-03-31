@@ -2178,6 +2178,7 @@ Make all exported files into =exported= directory.
 ;; fix code block export problem
 (use-package ox-pandoc
   :ensure t
+  :defer 8
   :after org
   :custom
   ;; special extensions for markdown_github output
@@ -4421,10 +4422,6 @@ This is an alternative to smartparens.
   :hook (prog-mode . rainbow-delimiters-mode))
 #+end_src
 ** Dashboard
-:PROPERTIES:
-:header-args:    :tangle no
-:END:
-
 #+begin_src emacs-lisp
 (use-package dashboard
   :ensure t
@@ -4468,7 +4465,7 @@ This is an alternative to smartparens.
   (dashboard-set-file-icons t)
   (dashboard-set-init-info t)
   (dashboard-set-navigator t)
-  (dashboard-items '((agenda    . 5)
+  (dashboard-items '((agenda    . 10)
                      (recents   . 5)
                      (projects  . 5)
                      (bookmarks . 2)))
