@@ -1300,6 +1300,48 @@ Other related settings makes ivy more beautiful.
   (setq ivy-rich-parse-remote-buffer nil))
 #+end_src
 * Dired settings
+** Dired keybindings
+| key                        | description                                                   |
+|----------------------------+---------------------------------------------------------------|
+| n                          | next line                                                     |
+| p                          | previous line                                                 |
+| j                          | jump to file in buffer                                        |
+| RET                        | select file or directory                                      |
+| =^=                          | go to parent directory                                        |
+| S-RET                      | open file in other window                                     |
+| M-RET                      | show file in other window without focusing (previewing files) |
+| g                          | refresh buffer                                                |
+|----------------------------+---------------------------------------------------------------|
+| m                          | mark a file                                                   |
+| u                          | unmark a file                                                 |
+| U                          | unmark all the files                                          |
+| * t                        | Inverts marked files in buffer                                |
+| % m                        | Mark files in buffer using regular expression                 |
+| =*=                          | lots of other auto-marking functions                          |
+| k                          | “Kill” marked items (refresh buffer with g to get them back)  |
+|----------------------------+---------------------------------------------------------------|
+| C                          | copy marked files (or if not marked, current file)            |
+| R                          | Rename marked files, renaming multiple is a move!             |
+| % R                        | Rename based on regular expression                            |
+|----------------------------+---------------------------------------------------------------|
+| D                          | Delete marked file                                            |
+| d                          | Mark file for deletion                                        |
+| x                          | Execute deletion for marks                                    |
+| =delete-by-moving-to-trash=  | Move to trash instead of deleting permanently                 |
+|----------------------------+---------------------------------------------------------------|
+| Z                          | Compress or uncompress a file or folder to (.tar.gz)          |
+| c                          | Compress selection to a specific file                         |
+| =dired-compress-files-alist= | Bind compression commands to file extension                   |
+|----------------------------+---------------------------------------------------------------|
+| T                          | Touch (change timestamp)                                      |
+| M                          | Change file mode                                              |
+| O                          | Change file owner                                             |
+| G                          | Change file group                                             |
+| S                          | Create a symbolic link to this file                           |
+| L                          | Load an Emacs Lisp file into Emacs                            |
+|                            |                                                               |
+
+
 ** Basic settings
 #+begin_src emacs-lisp
 (defun xah-open-in-external-app (&optional @fname)
@@ -1560,8 +1602,10 @@ Version 2019-11-04"
          ;; (org-mode . add-pcomplete-to-capf)
          )
   :commands (org-find-exact-headline-in-buffer org-set-tags)
+  ;; change <return> will affect flyspell-popup
   ;; :bind (:map org-mode-map
-  ;;             ("<return>" . org-return-indent)) ; wil affect flyspell-popup
+  ;;             ("<return>" . (org-return-indent)))
+
   :config
   (define-advice org-fast-tag-selection (:around (func &rest args))
     "Hide the modeline in *Org tags* buffer so you can actually see its
@@ -1588,6 +1632,7 @@ Version 2019-11-04"
   (org-default-notes-file (expand-file-name "notes.org" org-directory))
   (org-modules '(ol-bibtex ol-gnus ol-info ol-eww org-habit org-protocol))
   ;; prettify
+  (org-ellipsis " ▾")
   (org-loop-over-headlines-in-active-region t)
   (org-fontify-todo-headline t)
   (org-fontify-done-headline t)
@@ -1741,6 +1786,11 @@ otherwise use the subtree title."
   :custom
   ;; if you want to keep all org files in monitor, use following setting:
   ;; (org-agenda-files (directory-files-recursively "~/org/" "\\.org$"))
+  ;; if you want to set specific org files to be monitored, use follwoing:
+  ;; (setq org-agenda-files
+  ;;       '("~/org/Tasks.org"
+  ;;         "~/org/Habits.org"
+  ;;         "~/org/Birthdays.org"))
   (org-agenda-files (list (expand-file-name "tasks.org" org-directory)))
   (org-agenda-diary-file (expand-file-name "diary.org" org-directory))
   (org-agenda-insert-diary-extract-time t)
@@ -2761,21 +2811,36 @@ ARGS are passed to the PROGRAM."
                          ;; Don't prompt about processes when killing term
                          (set-process-query-on-exit-flag proc nil))))
   :bind (:map term-raw-map
-         ("C-c C-y" . term-paste)
-         ;; Don't capture my keys!
-         ("M-:" . nil)
-         ("M-x" . nil)
-         ("C-h" . nil)
-         ("C-u" . nil))
+              ("C-c C-y" . term-paste)
+              ;; Don't capture my keys!
+              ("M-:" . nil)
+              ("M-x" . nil)
+              ("C-h" . nil)
+              ("C-u" . nil))
   :config
   (when (eq system-type 'darwin)
     (define-key term-raw-map (kbd "H-v") 'term-paste))
+
+  (defun term-mode-common-init ()
+    "The common initialization for term."
+    (setq-local scroll-margin 0)
+    (setq-local truncate-lines t)
+    (setq-local global-hl-line-mode nil)
+    (when (bound-and-true-p evil-mode)
+      (setq-local evil-insert-state-cursor 'box)
+      (evil-insert-state)))
   :custom
-  (explicit-shell-file-name "zsh") ; set to bash if you prefer bash
+  (explicit-shell-file-name "/bin/zsh") ; set to bash if you prefer bash
   (term-input-ignoredups t)
   (term-completion-autolist t)
   (term-scroll-to-bottom-on-output 'all)
   (term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
+#+end_src
+** Term color
+#+begin_src emacs-lisp -n
+(use-package eterm-256color
+  :ensure t
+  :hook (term-mode . eterm-256color-mode))
 #+end_src
 * Company settings
 ** Basic company settings
@@ -4507,6 +4572,28 @@ This is an alternative to smartparens.
       (when (and (eq old-point (point))
                  (eq old-tick (buffer-chars-modified-tick)))
         (ignore-errors (yas-next-field))))))
+#+end_src
+** Command log mode
+Use =command-log-mode= for live streams and screencasts.
+#+begin_src emacs-lisp -n
+(use-package command-log-mode
+  :ensure t
+  :commands command-log-mode)
+#+end_src
+** Helpful help commands
+Helpful adds a lot of very helpful (get it?) information to Emacs’ describe- command buffers.
+#+begin_src emacs-lisp -n
+(use-package helpful
+  :ensure t
+  :commands (helpful-callable helpful-variable helpful-command helpful-key)
+  :custom
+  (counsel-describe-function-function #'helpful-callable)
+  (counsel-describe-variable-function #'helpful-variable)
+  :bind
+  ([remap describe-function] . counsel-describe-function)
+  ([remap describe-command] . helpful-command)
+  ([remap describe-variable] . counsel-describe-variable)
+  ([remap describe-key] . helpful-key))
 #+end_src
 * OSX specified
 ** dictionary
