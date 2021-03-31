@@ -2,45 +2,12 @@
 #+author: Randolph Huang
 #+startup: overview
 
-* Startup Performance
-Make startup faster by reducing the frequency of garbage collection and then use a hook to measure Emacs startup time.
-#+begin_src emacs-lisp
-;; A big contributor to startup times is garbage collection. We up the gc
-;; threshold to temporarily prevent it from running, and then reset it later
-;; using a hook.
-(setq gc-cons-threshold most-positive-fixnum
-      gc-cons-percentage 0.6)
-
-;; Keep a ref to the actual file-name-handler
-(defvar default-file-name-handler-alist file-name-handler-alist)
-
-;; Set the file-name-handler to nil (because regexing is cpu intensive)
-(setq file-name-handler-alist nil)
-
-;; Reset file-name-handler-alist after initialization
-(add-hook 'emacs-startup-hook
-  (lambda ()
-  ;; The default is 800 kilobytes.  Measured in bytes.
-  (setq gc-cons-threshold (* 50 1000 1000)
-        gc-cons-percentage 0.1
-        file-name-handler-alist default-file-name-handler-alist)))
-#+end_src
-* Native Compilation
-#+begin_src emacs-lisp
-;; Silence compiler warnings as they can be pretty disruptive
-(setq comp-async-report-warnings-errors nil)
-
-;; This tells Emacs not to warn you about anything except problems.
-;; By contrast, the default value of warning-minimum-level is :warning.
-(setq warning-minimum-level :emergency)
-#+end_src
-
-* Network settings
-** proxy settings
-#+begin_src emacs-lisp
-(setq url-proxy-services
-      '(("http"  . "127.0.0.1:6152")
-        ("https" . "127.0.0.1:6152")))
+* Emacs Plus
+You can try emacs-plus if you use MacOS.
+#+begin_src shell :file-name: temp.sh
+brew tap d12frosted/emacs-plus
+brew install emacs-plus
+ln -s /usr/local/opt/emacs-plus@27/Emacs.app /Applications
 #+end_src
 * Package Management
 ** Setup ELPA, MELPA and Org repo
@@ -49,31 +16,39 @@ Make startup faster by reducing the frequency of garbage collection and then use
 (setq package-archives
       '(("gnu"    . "http://elpa.emacs-china.org/gnu/")
         ("melpa"  . "http://elpa.emacs-china.org/melpa/")
-	      ("melpa-stable" . "http://elpa.emacs-china.org/melpa-stable/")
-	      ("marmalade" . "http://elpa.emacs-china.org/marmalade/")
+	    ("melpa-stable" . "http://elpa.emacs-china.org/melpa-stable/")
+	    ("marmalade" . "http://elpa.emacs-china.org/marmalade/")
         ("org"         . "http://orgmode.org/elpa/")
-	      ;; ("org" . "hhttp://elpa.emacs-china.org/org/")
+	    ;; ("org" . "hhttp://elpa.emacs-china.org/org/")
         ))
-(package-initialize)
+(if (version< emacs-version "27")
+  (package-initialize))
 #+end_src
 ** Load =use-package= to manage package
 #+begin_src emacs-lisp
-;; Bootstrap `use-package'
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-(eval-and-compile
-  (setq use-package-always-ensure nil)
-  (setq use-package-always-defer nil)
-  (setq use-package-always-demand nil)
-  (setq use-package-expand-minimally nil)
-  (setq use-package-enable-imenu-support t))
-(eval-when-compile
-  (require 'use-package))
+  ;; Bootstrap `use-package'
+  (unless (package-installed-p 'use-package)
+    (package-refresh-contents)
+    (package-install 'use-package))
 
-(use-package diminish
-  :ensure t
-  )
+  ;; Use-package can now be used for itself
+  (use-package use-package
+    :init
+    (setq use-package-always-ensure nil)  ; Try installing automatically
+    (setq use-package-always-defer nil)
+    (setq use-package-expand-minimally nil)
+    (setq use-package-enable-imenu-support t)
+    (setq use-package-verbose nil)     ; Set to true when interested in load times
+    ;; If running as daemon, there's no reason to defer,just load shite
+    ;; to minimize chance of lockup, but it still happens sometimes.
+    (if (daemonp)
+	(setq use-package-always-demand t))
+
+    (use-package use-package-ensure-system-package :ensure t)   ; Need this because we are in use-package config
+    (use-package diminish :ensure t)
+
+    ;; Location where I keep custom packages
+    (setq custom-package-directory (concat user-emacs-directory "lisp/")))
 #+end_src
 ** Use-package keywords ordering
 Use the following keywords ordering for =use-package=:
@@ -105,26 +80,89 @@ Use the following keywords ordering for =use-package=:
   (setq auto-package-update-hide-results t)
   (auto-package-update-maybe))
 #+end_src
-** quelpa, somepackages for example company-lsp  would be downloaded via quelpa.
+** quelpa, some packages for example eaf would be downloaded via quelpa.
 #+begin_src emacs-lisp
 ;; Bootstrap `quelpa'.
 (use-package quelpa
   :ensure t
+  :config
+  (use-package quelpa-use-package :ensure t)  ;; quelpa integration with use-package
   :custom
   (quelpa-update-melpa-p nil)
   (quelpa-self-upgrade-p nil)
   (quelpa-checkout-melpa-p nil))
-
-;; quelpa integration with use-package
-(use-package quelpa-use-package :ensure t)
 #+end_src
-* exec-path enviroment
+* Startup Performance
+Make startup faster by reducing the frequency of garbage collection and then use a hook to measure Emacs startup time.
+#+begin_src emacs-lisp
+;; A big contributor to startup times is garbage collection. We up the gc
+;; threshold to temporarily prevent it from running, and then reset it later
+;; using a hook.
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
+
+;; Keep a ref to the actual file-name-handler
+(defvar default-file-name-handler-alist file-name-handler-alist)
+
+;; Set the file-name-handler to nil (because regexing is cpu intensive)
+(setq file-name-handler-alist nil)
+
+;; Reset file-name-handler-alist after initialization
+(add-hook 'emacs-startup-hook
+  (lambda ()
+  ;; The default is 800 kilobytes.  Measured in bytes.
+  (setq gc-cons-threshold (* 50 1000 1000)
+        gc-cons-percentage 0.1
+        file-name-handler-alist default-file-name-handler-alist)))
+
+;; GC optimization
+(use-package gcmh
+  :ensure t
+  :hook (after-init . gcmh-mode)
+  :custom
+  (gcmh-idle-delay 10)
+  (gcmh-high-cons-threshold #x6400000)) ;; 100 MB
+#+end_src
+* exec-path settings
 Only for Mac system.
 #+begin_src emacs-lisp
 (use-package exec-path-from-shell
   :ensure t
   :when (eq system-type 'darwin)
   :hook (after-init . exec-path-from-shell-initialize))
+#+end_src
+* Custom file settings
+Put custom setting in an independent file instead of in =init.el= file.
+#+begin_src emacs-lisp
+(setq custom-file "~/.emacs.d/custom.el")
+(if (file-exists-p custom-file)
+    (load custom-file))
+#+end_src
+* Native Compilation
+#+begin_src emacs-lisp
+;; Silence compiler warnings as they can be pretty disruptive
+(setq comp-async-report-warnings-errors nil)
+
+;; This tells Emacs not to warn you about anything except problems.
+;; By contrast, the default value of warning-minimum-level is :warning.
+(setq warning-minimum-level :emergency)
+#+end_src
+
+This variable tells Emacs to prefer the =.el= file if it’s newer, even if there is a corresponding =.elc= file. Also, use auto-compile to autocompile files as needed.
+#+begin_src emacs-lisp
+(setq load-prefer-newer t)
+(use-package auto-compile
+  :ensure t
+  :defer nil
+  :config (auto-compile-on-load-mode))
+#+end_src
+
+* Network settings
+** proxy settings
+#+begin_src emacs-lisp
+(setq url-proxy-services
+      '(("http"  . "127.0.0.1:6152")
+        ("https" . "127.0.0.1:6152")))
 #+end_src
 * Const and func definition
 ** User info
@@ -133,6 +171,8 @@ Only for Mac system.
 (setq user-mail-address "xiaojianghuang@gmail.com")
 ;; set default directory to HOME
 (setq default-directory (concat (getenv "HOME") "/"))
+;; Set the load path to user customized directories
+(add-to-list 'load-path "~/.emacs.d/lisp")
 #+end_src
 ** Const definition
 #+begin_src emacs-lisp
@@ -180,13 +220,56 @@ Only for Mac system.
   (goto-char (point-min))
   (delete-other-windows))
 
-(defun edit-configs ()
+(defun open-emacsconfig ()
   "Opens emacs-config.org file."
   (interactive)
   (find-file "~/.emacs.d/emacs-config.org"))
 #+end_src
+* Encryption
+** Authentication sources
+The =auth-source= library looks for passwords in a set of sources, by default it looks like:
+#+begin_example
+~/.authinfo
+~/.authinfo.gpg
+~/.netrc
+#+end_example
+
+You can also to add additional sources such as MacOS keychain("internet" or "generic") to the =auth-source= list.
+
+App like =Gnus=, =MU4E= will read password information from this file.
+** Create a recipient for encryption
+#+begin_src shell -n :file-name: temp.sh
+brew install gpg
+gpg --full-generate-key
+# select RSA, 4096 keysize, 0 (not expired)
+# input real name, email address, commnet
+# input passphrase for this GPG encryption file
+
+# check whether succeed
+gpg --list-keys
+#+end_src
+** Edit =.authinfo.gpg= file
+#+begin_example
+machine yoursitename login youremailaccount password yourpassword
+#+end_example
 * UI settings
 ** Basic UI settings
+*** Frame settings
+#+begin_src emacs-lisp
+;; set frame title
+(setq frame-title-format
+      (list (format "%s %%S: %%j " (system-name))
+            '(buffer-file-name "%f" (dired-directory dired-directory "%b"))))
+
+;; set frame size
+(setq default-frame-alist
+      '((top . 0)
+        (left . 80)
+        (width . 180)
+        (height . 50)))
+#+end_src
+
+*** Miscellaneous settings
 #+begin_src emacs-lisp
 ;; Supress GUI features
 (setq use-file-dialog nil
@@ -195,11 +278,6 @@ Only for Mac system.
       inhibit-startup-screen t
       inhibit-startup-message t
       inhibit-startup-buffer-menu t)
-
-;; set frame title
-(setq frame-title-format
-      (list (format "%s %%S: %%j " (system-name))
-            '(buffer-file-name "%f" (dired-directory dired-directory "%b"))))
 
 ;; Optimize for very long lines
 (setq bidi-paragraph-direction 'left-to-right
@@ -237,7 +315,7 @@ Only for Mac system.
 
 ;; No tabs, use space to replace tab
 (setq-default indent-tabs-mode nil)
-(setq-default tab-width 2)
+(setq-default tab-width 4)
 
 ;; automatically say yes when confirmation msg matched
 (setq original-y-or-n-p 'y-or-n-p)
@@ -263,6 +341,11 @@ Only for Mac system.
 ;; set kill ring to 200, default is 60
 (setq kill-ring-max 200)
 
+;; set mark ring shorter to make jump more easier. Default value is 16
+;; and you can use `counsel-mark-ring' (C-x j) to view all mark rings.
+(setq mark-ring-max 6)
+(setq global-mark-ring-max 6)
+
 (setq max-lisp-eval-depth 10000) ;; default is 800
 (setq max-specpdl-size 10000) ;; default is 1600
 
@@ -272,27 +355,28 @@ Only for Mac system.
 ;; Enable the disabled `list-timers', `list-threads' commands
 (put 'list-timers 'disabled nil)
 (put 'list-threads 'disabled nil)
+#+end_src
 
-(setq default-frame-alist
-      '((top . 0)
-        (left . 0)
-        (width . 150)
-        (height . 50)))
-
-;; Keep clean but enable `menu-bar' in MacOS
+*** Menubar settings
+Keep clean but enable =menu-bar= in MacOS.
+#+begin_src emacs-lisp -n
 (when (and (fboundp 'menu-bar-mode) (not (eq system-type 'darwin)))
   (menu-bar-mode -1))
 (when (fboundp 'tool-bar-mode)
   (tool-bar-mode -1))
 (when (fboundp 'set-scroll-bar-mode)
   (set-scroll-bar-mode nil))
+#+end_src
 
-;; directly modify when text selected
+*** Directly modify when selected
+#+begin_src emacs-lisp -n
 (use-package delsel
   :ensure nil
   :hook (after-init . delete-selection-mode))
+#+end_src
 
-;; Type text
+*** Better word wrapping for CJK characters
+#+begin_src emacs-lisp -n
 (use-package text-mode
   :ensure nil
   :custom
@@ -301,8 +385,11 @@ Only for Mac system.
   ;; paragraphs
   (sentence-end "\\([，。、！？]\\|……\\|[,.?!][]\"')}]*\\($\\|[ \t]\\)\\)[ \t\n]*")
   (sentence-end-double-space nil))
+#+end_src
 
-;; Make escape more nature
+*** Escape settings in minibuffer
+Make escape key more nature in minibuffer.
+#+begin_src emacs-lisp -n
 (use-package minibuffer
   :ensure nil
   :bind (:map minibuffer-local-map
@@ -320,13 +407,19 @@ Only for Mac system.
   (minibuffer-electric-default-mode t)
   (minibuffer-depth-indicate-mode t)
   (enable-recursive-minibuffers t))
+#+end_src
 
-;; Back to the previous position
+*** Save place
+Back to previous position.
+#+begin_src emacs-lisp -n
 (use-package saveplace
   :ensure nil
   :hook (after-init . save-place-mode))
+#+end_src
 
-;; make word editing and motion more fine-grained.
+*** Subword settings
+Make word editing and motion more fine-grained.
+#+begin_src emacs-lisp -n
 (use-package subword
   :ensure t
   :diminish subword-mode
@@ -335,7 +428,9 @@ Only for Mac system.
   :init
   (global-subword-mode))
 #+end_src
-Line number settings. Don't show line numbers always. Enable when nessecery.
+
+*** Line number settings
+Don't show line numbers always. Enable when nessecery.
 #+begin_src emacs-lisp
 (column-number-mode)
 (setq display-line-numbers-type 'relative)
@@ -357,6 +452,20 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
   :ensure t
   :hook (after-init . global-page-break-lines-mode))
 #+end_src
+** Center some modes
+Here we center org mode to make org more like a modern editor.
+#+begin_src emacs-lisp -n
+(use-package visual-fill-column
+  :ensure t
+  :defer t
+  :hook (org-mode . my/org-mode-visual-fill)
+  :config
+  (defun my/org-mode-visual-fill ()
+    (setq visual-fill-column-width 110
+          visual-fill-column-center-text t)
+    (visual-fill-column-mode 1))
+  )
+#+end_src
 ** Prettify symbols
 #+begin_src emacs-lisp
 (global-prettify-symbols-mode 1)
@@ -377,15 +486,23 @@ Line number settings. Don't show line numbers always. Enable when nessecery.
 ** Font settings
 Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
 #+begin_src emacs-lisp
-;; set english and chinese font and size
 (defun set-font (english chinese english-size chinese-size)
+  "set chinese, english font and size"
   (set-face-attribute 'default nil :font
-                      (format   "%s:pixelsize=%d"  english english-size))
+                      (format "%s:pixelsize=%d"  english english-size))
   (dolist (charset '(kana han symbol cjk-misc bopomofo))
     (set-fontset-font (frame-parameter nil 'font) charset
                       (font-spec :family chinese :size chinese-size))))
 
-(set-font   "Source Code Pro" "WenQuanYi Zen Hei Mono" 14 16)
+(add-to-list 'after-make-frame-functions
+             (lambda (new-frame)
+               (select-frame new-frame)
+               (when (display-graphic-p)
+               ;; (if window-system
+                   (set-font "Source Code Pro" "Microsoft YaHei" 14 16))))
+(when (display-graphic-p)
+;; (if window-system
+    (set-font "Source Code Pro" "Microsoft YaHei" 14 16))
 #+end_src
 ** Theme settings
 #+begin_src emacs-lisp
@@ -419,7 +536,8 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-one t)
   ;; (load-theme 'doom-one-light t)
   ;; (load-theme 'doom-nord t)
-  (load-theme 'doom-vibrant t)
+  ;; (load-theme 'doom-vibrant t)
+  (load-theme 'doom-palenight t)
   ;; (load-theme 'doom-zenburn t)
   ;; (load-theme 'doom-spacegrey t)
   ;; (load-theme 'doom-gruvbox t)
@@ -480,6 +598,7 @@ The original function deletes trailing whitespace of the current line."
                      "-title" title
                      "-message" body
                      "-activate" "org.gnu.Emacs"))))
+
 (use-package notifications
   :ensure nil
   :unless (memq system-type '(gnu/linux darwin))
@@ -491,10 +610,16 @@ The original function deletes trailing whitespace of the current line."
 #+begin_src emacs-lisp
 (use-package no-littering
   :ensure t
-  :demand t)
+  :demand t
+  :config
+  ;; no-littering doesn't set this by default so we must place
+  ;; auto save files in the same path as it uses for sessions
+  (setq auto-save-file-name-transforms
+        `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
+  )
 #+end_src
 * Backup settings
-Don't backup because we have git. Auto save which is useful.
+Auto backup and auto save.
 #+begin_src emacs-lisp
 (setq ;; backup settings. https://kangdalei.github.io/2017/Emacs-auto-save-file.html
  backup-by-copying t ; 自动备份
@@ -509,20 +634,47 @@ Don't backup because we have git. Auto save which is useful.
 (setq-default auto-save-timeout 15) ; 15秒无动作,自动保存
 (setq-default auto-save-interval 100) ; 100个字符间隔, 自动保存
 #+end_src
-* Codec settings
+* Coding system settings
 Use utf-8 everywhere.
 #+begin_src emacs-lisp
-;; Use UTF8 everywhere, see https://thraxys.wordpress.com/2016/01/13/utf-8-in-emacs-everywhere-forever/
-(setq locale-coding-system 'utf-8)
-(set-terminal-coding-system 'utf-8)
-(set-keyboard-coding-system 'utf-8)
-(set-selection-coding-system 'utf-8)
-(set-default-coding-systems 'utf-8)
-(set-language-environment 'utf-8)
+;; from purcell:
+(defun sanityinc/locale-var-encoding (v)
+  "Return the encoding portion of the locale string V, or nil if missing."
+  (when v
+    (save-match-data
+      (let ((case-fold-search t))
+        (when (string-match "\\.\\([^.]*\\)\\'" v)
+          (intern (downcase (match-string 1 v))))))))
+
+(dolist (varname '("LC_ALL" "LANG" "LC_CTYPE"))
+  (let ((encoding (sanityinc/locale-var-encoding (getenv varname))))
+    (unless (memq encoding '(nil utf8 utf-8))
+      (message "Warning: non-UTF8 encoding in environment variable %s may cause interop problems with this Emacs configuration." varname))))
+
+(when (fboundp 'set-charset-priority)
+  (set-charset-priority 'unicode))
 (prefer-coding-system 'utf-8)
-(when (display-graphic-p)
-  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
+(setq locale-coding-system 'utf-8)
+(unless (eq system-type 'windows-nt)
+  (set-selection-coding-system 'utf-8))
+
+;; Use UTF8 everywhere, see https://thraxys.wordpress.com/2016/01/13/utf-8-in-emacs-everywhere-forever/
+;; (setq locale-coding-system 'utf-8)
+;; (set-terminal-coding-system 'utf-8)
+;; (set-keyboard-coding-system 'utf-8)
+;; (set-selection-coding-system 'utf-8)
+;; (set-default-coding-systems 'utf-8)
+;; (set-language-environment 'utf-8)
+;; (prefer-coding-system 'utf-8)
+;; (when (display-graphic-p)
+;;   (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
 #+end_src
+
+If we encounter some coding system issues, refer to following tips:
+#+begin_quote
+1. =M-x describe-coding-system= to see current coding system.
+2. =M-x revert-buffer-with-coding-system= to set the correct coding system.
+#+end_quote
 * Revert settings
 #+begin_src emacs-lisp
 ;; Update buffer whenever file changes
@@ -541,8 +693,6 @@ Use utf-8 everywhere.
 * Emacs server mode settings
 Run server mode as possible.
 #+begin_src emacs-lisp
-;; Server mode.
-;; Use emacsclient to connect
 (use-package server
   :ensure nil
   :when (display-graphic-p)
@@ -553,7 +703,6 @@ Run server mode as possible.
 #+end_src
 * Window moving
 #+begin_src emacs-lisp
-;; 通过ace-window可快速进行窗口间的跳转
 (use-package ace-window
   :ensure t
   :init
@@ -569,9 +718,7 @@ Run server mode as possible.
   )
 #+end_src
 * HTML Renderer settings
-This setting will affect eww behavior.
 #+begin_src emacs-lisp
-;; Simple HTML Renderer, will affect eww image showing
 (use-package shr
   :ensure nil
   :custom
@@ -579,40 +726,14 @@ This setting will affect eww behavior.
   (shr-use-colors nil)
   ;; (shr-cookie-policy nil)
   ;; (shr-cookie-policy t)
-  ;; doc is not right, set to nil will show images
-  ;; (setq shr-inhibit-images t)
+  ;; (setq shr-inhibit-images t) ; this will affect eww image showing
   ;; (shr-blocked-images nil)
   (shr-max-image-proportion 0.8)
   ;; (shr-image-animate nil)
   ;; (shr-blocked-images ".")
   )
 #+end_src
-* Comment settings
-#+begin_src emacs-lisp
-(use-package newcomment
-  :ensure nil
-  :bind ([remap comment-dwim] . #'comment-or-uncomment)
-  :config
-  (defun comment-or-uncomment ()
-    "Comment or uncomment the current line or region.
-If the region is active and `transient-mark-mode' is on, call `comment-or-uncomment-region'.
-Else, if the current line is empty, insert a comment and indent it.
-Else, call `comment-or-uncomment-region' on the current line."
-    (interactive)
-    (if (region-active-p)
-        (comment-or-uncomment-region (region-beginning) (region-end))
-      (if (save-excursion
-            (beginning-of-line)
-            (looking-at "\\s-*$"))
-          (comment-dwim nil)
-        (comment-or-uncomment-region (line-beginning-position) (line-end-position)))))
-  :custom
-  ;; `auto-fill' inside comments.
-  ;;
-  ;; The quoted text in `message-mode' are identified as comments, so only
-  ;; quoted text can be `auto-fill'ed.
-  (comment-auto-fill-only-comments t))
-#+end_src
+
 * Tramp settings
 #+begin_src emacs-lisp
 ;; transparent remote access
@@ -694,7 +815,6 @@ Else, call `comment-or-uncomment-region' on the current line."
 #+end_src
 * Recent files open
 #+begin_src emacs-lisp
-;; Recently opened files
 (use-package recentf
   :ensure nil
   :defines no-littering-etc-directory no-littering-var-directory quelpa-packages-dir
@@ -715,6 +835,16 @@ Else, call `comment-or-uncomment-region' on the current line."
                      "^/private/tmp/"
                      "^/var/folders/"
                      ;; Folders on MacOS end
+                     ".cache"
+                     ".cask"
+                     ".elfeed"
+                     "bookmarks"
+                     "cache"
+                     "ido.*"
+                     "persp-confs"
+                     "recentf"
+                     "undo-tree-hist"
+                     "url"
                      "^/tmp/"
                      "/ssh\\(x\\)?:"
                      "/su\\(do\\)?:"
@@ -806,7 +936,7 @@ Use Ivy/counsel.
   :init
   (setq enable-recursive-minibuffers t) ; Allow commands in minibuffers
 
-  (setq ivy-use-selectable-prompt t
+  (setq ivy-use-selectable-prompt t     ; if you want to create a new file, C-p
         ivy-use-virtual-buffers t    ; Enable bookmarks and recentf
         ivy-height 10
         ivy-fixed-height-minibuffer t
@@ -1077,6 +1207,7 @@ Use Ivy/counsel.
 
   (use-package ivy-prescient
     :ensure t
+    :after counsel
     :commands ivy-prescient-re-builder
     :custom-face
     (ivy-minibuffer-match-face-1 ((t (:inherit font-lock-doc-face :foreground nil))))
@@ -1171,11 +1302,48 @@ Other related settings makes ivy more beautiful.
 * Dired settings
 ** Basic settings
 #+begin_src emacs-lisp
+(defun xah-open-in-external-app (&optional @fname)
+  "Open the current file or dired marked files in external app.
+The app is chosen from your OS's preference.
+
+When called in emacs lisp, if @fname is given, open that.
+
+URL `http://ergoemacs.org/emacs/emacs_dired_open_file_in_ext_apps.html'
+Version 2019-11-04"
+  (interactive)
+  (let* (
+         ($file-list
+          (if @fname
+              (progn (list @fname))
+            (if (string-equal major-mode "dired-mode")
+                (dired-get-marked-files)
+              (list (buffer-file-name)))))
+         ($do-it-p (if (<= (length $file-list) 5)
+                       t
+                     (y-or-n-p "Open more than 5 files? "))))
+    (when $do-it-p
+      (cond
+       ((string-equal system-type "windows-nt")
+        (mapc
+         (lambda ($fpath)
+           (w32-shell-execute "open" $fpath)) $file-list))
+       ((string-equal system-type "darwin")
+        (mapc
+         (lambda ($fpath)
+           (shell-command
+            (concat "open " (shell-quote-argument $fpath))))  $file-list))
+       ((string-equal system-type "gnu/linux")
+        (mapc
+         (lambda ($fpath) (let ((process-connection-type nil))
+                       (start-process "" nil "xdg-open" $fpath))) $file-list))))))
+
 (use-package dired
   :ensure nil
   :bind (:map dired-mode-map
          ;; consistent with ivy
-         ("C-c C-e"   . wdired-change-to-wdired-mode))
+         ("C-c C-e"   . wdired-change-to-wdired-mode)
+         ("C-<return>" . xah-open-in-external-app)
+         )
   :custom
   (dired-dwim-target t)
   (dired-bind-vm nil)
@@ -1392,6 +1560,8 @@ Other related settings makes ivy more beautiful.
          ;; (org-mode . add-pcomplete-to-capf)
          )
   :commands (org-find-exact-headline-in-buffer org-set-tags)
+  ;; :bind (:map org-mode-map
+  ;;             ("<return>" . org-return-indent)) ; wil affect flyspell-popup
   :config
   (define-advice org-fast-tag-selection (:around (func &rest args))
     "Hide the modeline in *Org tags* buffer so you can actually see its
@@ -1404,6 +1574,15 @@ Other related settings makes ivy more beautiful.
       (apply func args)))
   :custom-face
   (org-document-title ((t (:height 1.75 :weight bold))))
+  (org-level-1 ((t (:height 1.3 :foreground "#51afef" :weight bold))))
+  (org-level-2 ((t (:height 1.3 :foreground "#C57BDB" :weight bold))))
+  (org-level-3 ((t (:height 1.3 :foreground "#a991f1" :weight bold))))
+  (org-level-4 ((t (:height 1.3 :foreground "#7cc3f3" :weight bold))))
+  (org-level-5 ((t (:height 1.3 :foreground "#d39ce3" :weight bold))))
+  (org-level-6 ((t (:height 1.3 :foreground "#a8d7f7" :weight bold))))
+  (org-level-7 ((t (:height 1.3 :foreground "#e2bded" :weight bold))))
+  (org-level-8 ((t (:height 1.3 :foreground "#dceffb" :weight bold))))
+  (org-level-9 ((t (:height 1.3 :weight bold))))
   :custom
   (org-directory "~/org")
   (org-default-notes-file (expand-file-name "notes.org" org-directory))
@@ -1418,10 +1597,11 @@ Other related settings makes ivy more beautiful.
   (org-hide-emphasis-markers t)
   (org-highlight-latex-and-related '(native script entities))
   (org-pretty-entities t)
-  (org-startup-indented t)
   (org-hide-leading-stars nil)
   (org-indent-mode-turns-on-hiding-stars nil)
+  (org-startup-indented t)
   (org-startup-with-inline-images t)
+  (org-startup-folded t)
   (org-list-demote-modify-bullet '(("+" . "-") ("1." . "a.") ("-" . "+")))
   (org-catch-invisible-edits 'smart)
   (org-insert-heading-respect-content t)
@@ -1497,17 +1677,29 @@ Other related settings makes ivy more beautiful.
 (use-package toc-org
   :ensure t
   :hook (org-mode . toc-org-mode))
+#+end_src
+** Prettify bullets
++ =org-bullets=
+#+begin_src emacs-lisp -n
+;; (use-package org-bullets
+;;   :ensure t
+;;   :config
+;;   (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
+#+end_src
 
-;; beautiful org bullets
-(use-package org-bullets
++ =org-superstar=
+Another choice is =org-superstar= which is a descendant of =org-bullets=.
+#+begin_src emacs-lisp -n
+(use-package org-superstar
   :ensure t
-  :config
-  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
+  :hook (org-mode . (lambda ()
+                      (org-superstar-mode 1)))
+  )
 #+end_src
 ** Enhance refile to a new file
+Refile to a new org file. Refer to:
+https://stackoverflow.com/questions/33885244/emacs-org-mode-how-can-i-refile-a-subtree-to-a-new-file
 #+begin_src emacs-lisp
-;; refile to a new org file.
-;; https://stackoverflow.com/questions/33885244/emacs-org-mode-how-can-i-refile-a-subtree-to-a-new-file
 (defun my/org-file-from-subtree (&optional name)
   "Cut the subtree currently being edited and create a new file
 from it.
@@ -1547,6 +1739,8 @@ otherwise use the subtree title."
   (run-at-time t 300 #'org-agenda-to-appt)
   (advice-add #'org-agenda-to-appt :around #'my/suppress-message)
   :custom
+  ;; if you want to keep all org files in monitor, use following setting:
+  ;; (org-agenda-files (directory-files-recursively "~/org/" "\\.org$"))
   (org-agenda-files (list (expand-file-name "tasks.org" org-directory)))
   (org-agenda-diary-file (expand-file-name "diary.org" org-directory))
   (org-agenda-insert-diary-extract-time t)
@@ -1664,15 +1858,17 @@ otherwise use the subtree title."
                         ("cpp"          . c++)
                         ("dot"          . graphviz-dot)
                         ("elisp"        . emacs-lisp)
-                        ;; ("ipython"      . ipython)
                         ("python"       . python)
+                        ("jupyter-python" . python)
                         ("ein"          . ein)
                         ("mermaid"      . mermaid)
                         ("ocaml"        . tuareg)
                         ("shell"        . sh)
                         ("html"         . browser)
                         ("mysql"        . sql)))
-  (org-babel-load-languages '((awk             . t)
+  (org-babel-load-languages '(
+                              (python          . t)
+                              (awk             . t)
                               (C               . t)
                               (calc            . t)
                               (dot             . t)
@@ -1680,13 +1876,13 @@ otherwise use the subtree title."
                               (eshell          . t)
                               (gnuplot         . t) ;; enable gnuplot to draw 2d/3d graphs
                               (ocaml           . t)
-                              (python          . t)
-                              ;; (ipython         . t)
-                              ;; (ein             . t)
+                              (ein             . t)
                               (mermaid         . t)
                               (shell           . t)
                               (browser         . t)
-                              (sql             . t)))
+                              (sql             . t)
+                              (jupyter         . t)
+                              ))
   )
 #+end_src
 *** Enable HTML in src block
@@ -1872,14 +2068,16 @@ otherwise use the subtree title."
           ("c" . "comment")
           ("v" . "verse")
           ("html" . "src html")
-          ("sql" . "src sql :results raw drawer :engine mysql :database midea_cs :file-name temp.sql")
+          ("sql" . "src sql -n :results raw drawer :engine mysql :database midea_cs :file-name temp.sql")
           ("exhtml" . "export html")
           ("exmd" . "export md")
-          ("el" . "src emacs-lisp")
-          ("sh" . "src shell :file-name: temp.sh")
-          ("json" . "src json")
-          ;; ("ipy" . "src ipython :session :exports both :results raw drawer :file \"/Users/randolph/Documents/sandbox/midea_cs/data_processing/excel_processing.py\"")
-          ("p" . "src python :results output :file-name temp.py"))))
+          ("el" . "src emacs-lisp -n")
+          ("sh" . "src shell -n :file-name: temp.sh")
+          ("json" . "src json -n")
+          ("jp"  . "src jupyter-python -n :session py :results output :file-name temp.py")
+          ("ein" . "src ein-python -n :session localhost :results output :file-name temp.py")
+          ("py" . "src python -n :results output :file-name temp.py")))
+  )
 #+end_src
 ** Org clock
 #+begin_src emacs-lisp
@@ -1908,6 +2106,17 @@ otherwise use the subtree title."
                                                 :timeout 5000
                                                 :urgency 'critical))))
 #+end_src
+** Org Notifications
+#+begin_src emacs-lisp -n
+;; (use-package org-alert
+;;   :ensure t
+;;   :config
+;;   (setq alert-default-style 'osx-notifier
+;;         org-alert-interval 300
+;;         org-alert-notification-title "Org Alert Reminder!")
+;;   (org-alert-enable)
+;;   )
+#+end_src
 ** Exporting settings
 *** Basic settings
 #+begin_src emacs-lisp
@@ -1915,6 +2124,8 @@ otherwise use the subtree title."
 (use-package ox
   :ensure nil
   :after org
+  :config
+  (add-to-list 'org-export-backends 'pandoc)
   :custom
   (org-export-with-toc t)
   (org-export-with-tags 'not-in-toc)
@@ -1931,13 +2142,12 @@ otherwise use the subtree title."
   (org-export-headline-levels 5)
   (org-export-coding-system 'utf-8)
   (org-export-with-broken-links 'mark)
-  ;; (org-export-backends '(ascii html md icalendar man)))
-  ;; use pandoc to replace md backend
-  (org-export-backends '(html pandoc)))
+  ;; (org-export-backends '(ascii html md icalendar man))) ; original value
+  )
 #+end_src
 *** Modify export directory
+Make all exported files into =exported= directory.
 #+begin_src emacs-lisp
-;; modify export directory to exported
 (defun org-export-output-file-name-modified (orig-fun extension &optional subtreep pub-dir)
   (unless pub-dir
     (setq pub-dir "exported")
@@ -2021,6 +2231,69 @@ otherwise use the subtree title."
   (org-num-skip-unnumbered t)
   (org-num-skip-tags `(,org-archive-tag)))
 #+end_src
+** Blogging via Hugo
+*** hugo preparation
+**** install hugo first
+#+begin_src shell :file-name: temp.sh
+brew install hugo
+#+end_src
+**** set hugo site directory
+#+begin_src shell :file-name: temp.sh
+hugo new site ~/iCloud/Blog
+#+end_src
+**** add a theme
+Take =hugo-ink= theme for example:
+#+begin_src shell :file-name: temp.sh
+cd ~/iCloud/Blog/themes
+git clone https://github.com/knadh/hugo-ink.git
+#+end_src
+
+Add theme config to =config.toml=:
+#+begin_src shell :file-name: temp.sh
+echo theme = \"hugo-ink\" >> ~/iCloud/Blog/config.toml
+#+end_src
+**** add some content
+The markdown content is under =$hugo-home/content/posts= directory.
+#+begin_src shell :file-name: temp.sh
+hugo new posts/my-first-post.md
+#+end_src
+**** start hugo server
+#+begin_src shell :file-name: temp.sh
+hugo server -D
+#+end_src
+**** Navigate site at http://localhost:1313/
+*** ox-hugo backend configuration
+#+begin_src emacs-lisp
+(use-package ox-hugo
+  :ensure t            ; Auto-install the package from Melpa (optional)
+  :after ox
+  :config
+  (with-eval-after-load 'org-capture
+    (defun org-hugo-new-subtree-post-capture-template ()
+      "Returns `org-capture' template string for new Hugo post.
+See `org-capture-templates' for more information."
+      (let* ((title (read-from-minibuffer "Post Title: ")) ; Prompt to enter the post title
+             (fname (org-hugo-slug title)))
+        (mapconcat #'identity
+                   `(
+                     ,(concat "* TODO " title)
+                     ":PROPERTIES:"
+                     ,(concat ":EXPORT_FILE_NAME: " fname)
+                     ":END:"
+                     "%?\n")          ; Place the cursor here finally
+                   "\n")))
+
+    (add-to-list 'org-capture-templates
+                 '("h"                ; `org-capture' binding + h
+                   "Hugo post"
+                   entry
+                   ;; It is assumed that below file is present in `org-directory'
+                   ;; and that it has a "Blog Ideas" heading. It can even be a
+                   ;; symlink pointing to the actual location of all-posts.org!
+                   (file+olp "all-posts.org" "Blog Ideas")
+                   (function org-hugo-new-subtree-post-capture-template))))
+  )
+#+end_src
 ** Enhance image paste from clipboard
 #+begin_src emacs-lisp
 ;; paste image from clipboard via pngpaste.
@@ -2044,31 +2317,10 @@ otherwise use the subtree title."
   (insert (concat "[[" relativeFilename "]]"))
   ;; (org-display-inline-images)
   )
-;; use Meta-V to paste image from clipboard
+;; use Command-V to paste image from clipboard
 (define-key org-mode-map (kbd "s-V") 'my-org-insert-clipboard-image)
 #+end_src
-** Reveal settings
-*** Reveal basic settings
-#+begin_src emacs-lisp
-(use-package ox-reveal
-  :ensure t
-  :config
-  (setq org-reveal-hlevel 2)
-  ;; Avalable themes: night, black, white, league, beige, sky, serif, simple, solarized, blood, moon
-  (setq org-reveal-theme "night")
-  ;; can also set root to a CDN cloud: https://cdn.jsdelivr.net/npm/reveal.js
-  (setq org-reveal-root "https://cdn.jsdelivr.net/npm/reveal.js")
-  ;; (setq org-reveal-root (expand-file-name "~/.emacs.d/reveal.js"))
-  (setq org-reveal-mathjax t)
-  )
-#+end_src
-*** force split
-If one heading has too many things to fit into one slide, you can split the contents into multiple vertical slides manually, by inserting:
-#+begin_example
-#+REVEAL: split
-#+end_example
-*** Raw HTML in slide
-Besides the Org contents, you can embed raw HTML contents into slides by placing a =#+REVEAL_HTML= keyword.
+
 ** Mermaid settings
 #+begin_src emacs-lisp
 (use-package ob-mermaid
@@ -2098,43 +2350,125 @@ Besides the Org contents, you can embed raw HTML contents into slides by placing
 (setq org-mobile-inbox-for-pull "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/")
 #+end_src
 ** Org Presentation
-Do presentation in Emacs
+Do presentation in Emacs. We have several choices.
+*** Org Reveal
+**** Reveal basic settings
 #+begin_src emacs-lisp
-(use-package org-present
+(use-package ox-reveal
   :ensure t
-  :commands (org-present)
   :config
-  (defun org-present-on ()
-    (org-present-big)
-    (org-display-inline-images)
-    (org-present-hide-cursor)
-    ;; (display-line-numbers-mode -1)
-    (org-present-read-only))
-  (defun org-present-off ()
-    (org-present-small)
-    (org-present-show-cursor)
-    (unless org-startup-with-inline-images
-      (org-remove-inline-images))
-    ;; (display-line-numbers-mode)
-    (org-present-read-write))
-  (add-hook 'org-present-mode-hook #'org-present-on)
-  (add-hook 'org-present-mode-quit-hook #'org-present-off)
-  ;; Redefine org-present to call org-present-narrow after running hooks
-  (defun org-present ()
-    "init org present."
-    (interactive)
-    (setq org-present-mode t)
-    (org-present-add-overlays)
-    (run-hooks 'org-present-mode-hook)
-    (org-present-narrow)
-    (org-present-run-after-navigate-functions))
-  :bind (:map org-present-mode-keymap
-         ("C-p" . org-present-prev)
-         ("C-n" . org-present-next))
-         ;; ("<left>"  . org-present-prev)
-         ;; ("<right>" . org-present-next)
-         ;;("q"       . org-present-quit))
+  (setq org-reveal-hlevel 2)
+  ;; Avalable themes: night, black, white, league, beige, sky, serif, simple, solarized, blood, moon
+  (setq org-reveal-theme "night")
+  ;; can also set root to a CDN cloud: https://cdn.jsdelivr.net/npm/reveal.js
+  (setq org-reveal-root "https://cdn.jsdelivr.net/npm/reveal.js")
+  ;; (setq org-reveal-root (expand-file-name "~/.emacs.d/reveal.js"))
+  (setq org-reveal-mathjax t)
   )
+#+end_src
+**** force split
+If one heading has too many things to fit into one slide, you can split the contents into multiple vertical slides manually, by inserting:
+#+begin_example
+#+REVEAL: split
+#+end_example
+**** Raw HTML in slide
+Besides the Org contents, you can embed raw HTML contents into slides by placing a =#+REVEAL_HTML= keyword.
+*** Org-present
+I like org-tree-slide more. Abandon this package.
+#+begin_src emacs-lisp
+;; (use-package org-present
+;;   :ensure t
+;;   :commands (org-present)
+;;   :config
+;;   (defun my/org-present-prepare-slide ()
+;;     (org-overview)
+;;     (org-show-entry)
+;;     (org-present-read-only)
+;;     (org-show-children))
+
+;;   (defun my/org-present-hook ()
+;;     ;; (setq-local face-remapping-alist '((default (:height 1.5) variable-pitch)
+;;     ;;                                    (header-line (:height 4.5) variable-pitch)
+;;     ;;                                    (org-code (:height 1.55) org-code)
+;;     ;;                                    (org-verbatim (:height 1.55) org-verbatim)
+;;     ;;                                    (org-block (:height 1.25) org-block)
+;;     ;;                                    (org-block-begin-line (:height 0.7) org-block)))
+;;     ;; (setq header-line-format " ")
+;;     (org-present-big)
+;;     (org-display-inline-images)
+;;     (my/org-present-prepare-slide))
+
+;;   (defun my/org-present-quit-hook ()
+;;     (setq-local face-remapping-alist '((default variable-pitch default)))
+;;     (setq header-line-format nil)
+;;     (org-present-small)
+;;     (org-present-read-write)
+;;     (org-remove-inline-images))
+
+;;   (defun my/org-present-prev ()
+;;     (interactive)
+;;     (org-present-prev)
+;;     (my/org-present-prepare-slide))
+
+;;   (defun my/org-present-next ()
+;;     (interactive)
+;;     (org-present-next)
+;;     (my/org-present-prepare-slide))
+;;   :bind (:map org-present-mode-keymap
+;;               ("C-c C-k" . my/org-present-prev)
+;;               ("C-c C-j" . my/org-present-next))
+;;   :hook ((org-present-mode . my/org-present-hook)
+;;          (org-present-mode-quit . my/org-present-quit-hook))
+;;   )
+#+end_src
+
+*** Org-tree-slide
+#+begin_src emacs-lisp -n
+(use-package org-tree-slide
+  :ensure t
+  :defer t
+  :after org
+  :commands org-tree-slide-mode
+  :bind (:map org-tree-slide-mode-map
+              ("C-c C-q" . my/org-end-presentation)
+              ("C-c C-n" . org-tree-slide-move-next-tree)
+              ("C-c C-p" . org-tree-slide-move-previous-tree))
+  :hook (org-tree-slide-play . my/org-start-presentation)
+  ;; (org-tree-slide-stop . my/org-end-presentation)
+  :config
+  (defun my/org-start-presentation ()
+    ;; (interactive)
+    (org-display-inline-images)
+    ;; (org-tree-slide-mode 1)
+    (setq text-scale-mode-amount 3)
+    (text-scale-mode 1)
+    )
+
+  (defun my/org-end-presentation ()
+    (interactive)
+    (text-scale-mode 0)
+    (org-tree-slide-mode 0)
+    )
+  :custom
+  (org-tree-slide-in-effect t)
+  (org-tree-slide-activate-message "Presentation started.")
+  (org-tree-slide-deactivate-message "Presentation ended.")
+  (org-tree-slide-header t)
+  (org-image-actual-width nil)
+  )
+#+end_src
+** Grab links from different Mac Apps
+This is included in contrib package.
+#+begin_src emacs-lisp
+(use-package org-mac-link
+  :ensure nil
+  :after org
+  :custom
+  (org-mac-grab-Acrobat-app-p nil "Disable grabbing from Adobe Acrobat")
+  (org-mac-grab-devonthink-app-p nil "Disable grabbinb from DevonThink")
+  :bind
+  (:map org-mode-map
+   ("\e\e g" . org-mac-grab-link)))
 #+end_src
 ** Automatically “Tangle” on save
 See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--org-mode-for-literate-programming][Literate configuration]] for details.
@@ -2198,10 +2532,11 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
     (interactive "sTitle: ")
     (insert (format "<details><summary>%s</summary>\n\n</details>" title)))
 
-  (with-eval-after-load 'evil-collection
-    (evil-collection-define-key 'normal 'markdown-mode-map
-      (kbd "<tab>") 'markdown-cycle
-      (kbd "S-<tab>") 'markdown-shifttab))
+  ;; (with-eval-after-load 'evil-collection
+  ;;   (evil-collection-define-key 'normal 'markdown-mode-map
+  ;;     (kbd "<tab>") 'markdown-cycle
+  ;;     (kbd "S-<tab>") 'markdown-shifttab))
+
   :custom
   (markdown-header-scaling t)
   (markdown-enable-wiki-links t)
@@ -2289,11 +2624,11 @@ mermaid.initialize({
                          (eshell/alias "fo" "find-file-other-window $1")
                          (eshell/alias "d" "dired $1")
                          (eshell/alias "l" "ls -lFh")
-                         (eshell/alias "ll" "ls -l")
-                         (eshell/alias "l." "ls -d .*")
+                         (eshell/alias "ll" "ls -lh")
+                         (eshell/alias "l." "ls -dh .*")
                          (eshell/alias "la" "ls -lAFh")
                          (eshell/alias "lr" "ls -tRFh")
-                         (eshell/alias "lrt" "ls -lFcrt")
+                         (eshell/alias "lrt" "ls -lFcrth")
                          (eshell/alias "lsa" "ls -lah")
                          (eshell/alias "lt" "ls -ltFh"))))
   :config
@@ -2414,6 +2749,33 @@ ARGS are passed to the PROGRAM."
   :ensure nil
   :commands eshell-delchar-or-maybe-eof)
 #+end_src
+** Term settings
+#+begin_src emacs-lisp -n
+(use-package term
+  :ensure nil
+  :hook (term-mode . (lambda ()
+                       (term-mode-common-init)
+                       (my/buffer-auto-close)
+                       (when-let* ((proc (ignore-errors (get-buffer-process (current-buffer)))))
+                         ;; Don't prompt about processes when killing term
+                         (set-process-query-on-exit-flag proc nil))))
+  :bind (:map term-raw-map
+         ("C-c C-y" . term-paste)
+         ;; Don't capture my keys!
+         ("M-:" . nil)
+         ("M-x" . nil)
+         ("C-h" . nil)
+         ("C-u" . nil))
+  :config
+  (when (eq system-type 'darwin)
+    (define-key term-raw-map (kbd "H-v") 'term-paste))
+  :custom
+  (explicit-shell-file-name "zsh") ; set to bash if you prefer bash
+  (term-input-ignoredups t)
+  (term-completion-autolist t)
+  (term-scroll-to-bottom-on-output 'all)
+  (term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
+#+end_src
 * Company settings
 ** Basic company settings
 #+begin_src emacs-lisp
@@ -2437,7 +2799,7 @@ ARGS are passed to the PROGRAM."
   (setq global-company-mode '(not erc-mode message-mode help-mode gud-mode))
 
   :custom
-  (company-idle-delay 0.3)
+  (company-idle-delay 0.8)
   (company-show-numbers t)
   (company-require-match nil)
   (company-minimum-prefix-length 3)
@@ -2486,7 +2848,7 @@ If all failed, try to complete the common part with `company-complete-common'"
   :ensure t
   :after company
   :config
-  (setq company-quickhelp-idle-delay 0.5)
+  (setq company-quickhelp-idle-delay 0.8)
   (company-quickhelp-mode 1))
 #+end_src
 ** company box frontend
@@ -2561,7 +2923,7 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
   ;;  ("C-z t" . company-tabnine))
   :hook
   (lsp-after-open . (lambda ()
-                      (setq company-tabnine-max-num-results 5)
+                      (setq company-tabnine-max-num-results 9)
                       (add-to-list 'company-transformers 'company//sort-by-tabnine t)
                       (add-to-list 'company-backends '(company-capf :with company-tabnine :separate))))
   (kill-emacs . company-tabnine-kill-process)
@@ -2586,7 +2948,7 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
             (puthash candidate t candidates-table)))
         (setq candidates-lsp (nreverse candidates-lsp))
         (setq candidates-tabnine (nreverse candidates-tabnine))
-        (nconc (seq-take candidates-tabnine 3)
+        (nconc (seq-take candidates-tabnine 5)
                (seq-take candidates-lsp 6))))))
 #+end_src
 ** Others
@@ -2597,6 +2959,46 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
   :init (company-prescient-mode 1))
 #+end_src
 * Development settings
+** Highlight "TODO" in code
+#+begin_src emacs-lisp
+;; Highlight TODO
+(use-package hl-todo
+  :ensure t
+  :hook (after-init . global-hl-todo-mode)
+  :bind (:map hl-todo-mode-map
+         ("C-c t p" . hl-todo-previous)
+         ("C-c t n" . hl-todo-next)
+         ("C-c t o" . hl-todo-occur))
+  :config
+  (dolist (keyword '("BUG" "ISSUE" "NB"))
+    (cl-pushnew `(,keyword . ,(face-foreground 'error)) hl-todo-keyword-faces)))
+#+end_src
+** Comment settings
+#+begin_src emacs-lisp
+(use-package newcomment
+  :ensure nil
+  :bind ([remap comment-dwim] . #'comment-or-uncomment)
+  :config
+  (defun comment-or-uncomment ()
+    "Comment or uncomment the current line or region.
+If the region is active and `transient-mark-mode' is on, call `comment-or-uncomment-region'.
+Else, if the current line is empty, insert a comment and indent it.
+Else, call `comment-or-uncomment-region' on the current line."
+    (interactive)
+    (if (region-active-p)
+        (comment-or-uncomment-region (region-beginning) (region-end))
+      (if (save-excursion
+            (beginning-of-line)
+            (looking-at "\\s-*$"))
+          (comment-dwim nil)
+        (comment-or-uncomment-region (line-beginning-position) (line-end-position)))))
+  :custom
+  ;; `auto-fill' inside comments.
+  ;;
+  ;; The quoted text in `message-mode' are identified as comments, so only
+  ;; quoted text can be `auto-fill'ed.
+  (comment-auto-fill-only-comments t))
+#+end_src
 ** Git settings
 *** Magit
 #+begin_src emacs-lisp
@@ -2854,50 +3256,51 @@ See [[https://www.tabnine.com][tabnine]] for details. Run M-x =company-tabnine-i
               ("C-s-." . lsp-ivy-global-workspace-symbol))
   :config
   (with-no-warnings
-    (when (icons-displayable-p)
-      (defvar lsp-ivy-symbol-kind-icons
-        `(,(all-the-icons-material "find_in_page" :height 0.9 :v-adjust -0.15) ; Unknown - 0
-          ,(all-the-icons-faicon "file-o" :height 0.9 :v-adjust -0.02) ; File - 1
-          ,(all-the-icons-material "view_module" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-lblue) ; Module - 2
-          ,(all-the-icons-material "view_module" :height 0.95 :v-adjust -0.15 :face 'all-the-icons-lblue) ; Namespace - 3
-          ,(all-the-icons-octicon "package" :height 0.9 :v-adjust -0.15) ; Package - 4
-          ,(all-the-icons-material "settings_input_component" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-orange) ; Class - 5
-          ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-purple) ; Method - 6
-          ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02) ; Property - 7
-          ,(all-the-icons-octicon "tag" :height 0.95 :v-adjust 0 :face 'all-the-icons-lblue) ; Field - 8
-          ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-lpurple) ; Constructor - 9
-          ,(all-the-icons-material "storage" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-orange) ; Enum - 10
-          ,(all-the-icons-material "share" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-lblue) ; Interface - 11
-          ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-purple) ; Function - 12
-          ,(all-the-icons-octicon "tag" :height 0.95 :v-adjust 0 :face 'all-the-icons-lblue) ; Variable - 13
-          ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-purple) ; Constant - 14
-          ,(all-the-icons-faicon "text-width" :height 0.9 :v-adjust -0.02) ; String - 15
-          ,(all-the-icons-material "format_list_numbered" :height 0.95 :v-adjust -0.15) ; Number - 16
-          ,(all-the-icons-octicon "tag" :height 0.9 :v-adjust 0.0 :face 'all-the-icons-lblue) ; Boolean - 17
-          ,(all-the-icons-material "view_array" :height 0.95 :v-adjust -0.15) ; Array - 18
-          ,(all-the-icons-octicon "tag" :height 0.9 :v-adjust 0.0 :face 'all-the-icons-blue) ; Object - 19
-          ,(all-the-icons-faicon "key" :height 0.9 :v-adjust -0.02) ; Key - 20
-          ,(all-the-icons-octicon "tag" :height 0.9 :v-adjust 0.0) ; Null - 21
-          ,(all-the-icons-material "format_align_right" :height 0.95 :v-adjust -0.15 :face 'all-the-icons-lblue) ; EnumMember - 22
-          ,(all-the-icons-material "settings_input_component" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-orange) ; Struct - 23
-          ,(all-the-icons-octicon "zap" :height 0.9 :v-adjust 0 :face 'all-the-icons-orange) ; Event - 24
-          ,(all-the-icons-material "control_point" :height 0.9 :v-adjust -0.15) ; Operator - 25
-          ,(all-the-icons-faicon "arrows" :height 0.9 :v-adjust -0.02) ; TypeParameter - 26
-          ))
 
-      (lsp-defun my-lsp-ivy--format-symbol-match
-        ((sym &as &SymbolInformation :kind :location (&Location :uri))
-         project-root)
-        "Convert the match returned by `lsp-mode` into a candidate string."
-        (let* ((sanitized-kind (if (< kind (length lsp-ivy-symbol-kind-icons)) kind 0))
-               (type (elt lsp-ivy-symbol-kind-icons sanitized-kind))
-               (typestr (if lsp-ivy-show-symbol-kind (format "%s " type) ""))
-               (pathstr (if lsp-ivy-show-symbol-filename
-                            (propertize (format " · %s" (file-relative-name (lsp--uri-to-path uri) project-root))
-                                        'face font-lock-comment-face)
-                          "")))
-          (concat typestr (lsp-render-symbol-information sym ".") pathstr)))
-      (advice-add #'lsp-ivy--format-symbol-match :override #'my-lsp-ivy--format-symbol-match))))
+    (defvar lsp-ivy-symbol-kind-icons
+      `(,(all-the-icons-material "find_in_page" :height 0.9 :v-adjust -0.15) ; Unknown - 0
+        ,(all-the-icons-faicon "file-o" :height 0.9 :v-adjust -0.02) ; File - 1
+        ,(all-the-icons-material "view_module" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-lblue) ; Module - 2
+        ,(all-the-icons-material "view_module" :height 0.95 :v-adjust -0.15 :face 'all-the-icons-lblue) ; Namespace - 3
+        ,(all-the-icons-octicon "package" :height 0.9 :v-adjust -0.15) ; Package - 4
+        ,(all-the-icons-material "settings_input_component" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-orange) ; Class - 5
+        ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-purple) ; Method - 6
+        ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02) ; Property - 7
+        ,(all-the-icons-octicon "tag" :height 0.95 :v-adjust 0 :face 'all-the-icons-lblue) ; Field - 8
+        ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-lpurple) ; Constructor - 9
+        ,(all-the-icons-material "storage" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-orange) ; Enum - 10
+        ,(all-the-icons-material "share" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-lblue) ; Interface - 11
+        ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-purple) ; Function - 12
+        ,(all-the-icons-octicon "tag" :height 0.95 :v-adjust 0 :face 'all-the-icons-lblue) ; Variable - 13
+        ,(all-the-icons-faicon "cube" :height 0.9 :v-adjust -0.02 :face 'all-the-icons-purple) ; Constant - 14
+        ,(all-the-icons-faicon "text-width" :height 0.9 :v-adjust -0.02) ; String - 15
+        ,(all-the-icons-material "format_list_numbered" :height 0.95 :v-adjust -0.15) ; Number - 16
+        ,(all-the-icons-octicon "tag" :height 0.9 :v-adjust 0.0 :face 'all-the-icons-lblue) ; Boolean - 17
+        ,(all-the-icons-material "view_array" :height 0.95 :v-adjust -0.15) ; Array - 18
+        ,(all-the-icons-octicon "tag" :height 0.9 :v-adjust 0.0 :face 'all-the-icons-blue) ; Object - 19
+        ,(all-the-icons-faicon "key" :height 0.9 :v-adjust -0.02) ; Key - 20
+        ,(all-the-icons-octicon "tag" :height 0.9 :v-adjust 0.0) ; Null - 21
+        ,(all-the-icons-material "format_align_right" :height 0.95 :v-adjust -0.15 :face 'all-the-icons-lblue) ; EnumMember - 22
+        ,(all-the-icons-material "settings_input_component" :height 0.9 :v-adjust -0.15 :face 'all-the-icons-orange) ; Struct - 23
+        ,(all-the-icons-octicon "zap" :height 0.9 :v-adjust 0 :face 'all-the-icons-orange) ; Event - 24
+        ,(all-the-icons-material "control_point" :height 0.9 :v-adjust -0.15) ; Operator - 25
+        ,(all-the-icons-faicon "arrows" :height 0.9 :v-adjust -0.02) ; TypeParameter - 26
+        ))
+
+    (lsp-defun my-lsp-ivy--format-symbol-match
+      ((sym &as &SymbolInformation :kind :location (&Location :uri))
+       project-root)
+      "Convert the match returned by `lsp-mode` into a candidate string."
+      (let* ((sanitized-kind (if (< kind (length lsp-ivy-symbol-kind-icons)) kind 0))
+             (type (elt lsp-ivy-symbol-kind-icons sanitized-kind))
+             (typestr (if lsp-ivy-show-symbol-kind (format "%s " type) ""))
+             (pathstr (if lsp-ivy-show-symbol-filename
+                          (propertize (format " · %s" (file-relative-name (lsp--uri-to-path uri) project-root))
+                                      'face font-lock-comment-face)
+                        "")))
+        (concat typestr (lsp-render-symbol-information sym ".") pathstr)))
+    (advice-add #'lsp-ivy--format-symbol-match :override #'my-lsp-ivy--format-symbol-match)
+    ))
 #+end_src
 *** enable lsp mode in babel src block (abondoned, lsp mode has an official function lsp-org to support this)
 #+begin_src emacs-lisp
@@ -3056,6 +3459,7 @@ This Server supports automatic install (need has npm installed as dependency). I
 #+begin_src emacs-lisp
 (use-package ein
   :ensure t
+  :commands (ein:run)
   :hook ((ein:notebook-multilang-mode
           . (lambda () (ws-butler-mode -1) (visual-line-mode)))
          )
@@ -3065,6 +3469,36 @@ This Server supports automatic install (need has npm installed as dependency). I
   ;; (set-face-attribute 'ein:input-cell nil :background input-block)
   )
 #+end_src
+** Jupyter settings
+=Emacs Jupyter= is another choice similar as =EIN= while the experience is better.
+#+begin_src emacs-lisp
+(use-package jupyter
+  :ensure t
+  :defer t
+  :after org
+  ;; :bind
+  ;; (:map jupyter-repl-mode-map
+  ;;       ("C-M-n" . jupyter-repl-history-next)
+  ;;       ("C-M-p" . jupyter-repl-history-previous)
+  ;;       ("M-n" . jupyter-repl-forward-cell)
+  ;;       ("M-p" . jupyter-repl-backward-cell)
+  ;;       ("C-M-i" . completion-at-point)
+  ;;       :map jupyter-repl-interaction-mode-map
+  ;;       ("M-i" . nil)
+  ;;       ("C-?" . jupyter-inspect-at-point)
+  ;;       )
+  :init
+  (add-hook 'org-mode-hook 'org-babel-jupyter-aliases-from-kernelspecs)
+  (setq org-babel-default-header-args:jupyter-python '((:async . "yes")
+                                                       (:session . "py"))))
+#+end_src
+
+#+begin_quote
+if network is not good, you should mannually install zmq binary:
+1. download emacs-zmq binary from: https://github.com/nnicandro/emacs-zmq/releases
+2. untar
+3. mv =emacs-zmq.so= to directory(based on your version): ~/.emacs.d/elpa/zmq-20200912.1126/
+#+end_quote
 ** Shell script mode
 *** basic settings
 #+begin_src emacs-lisp
@@ -3147,7 +3581,13 @@ export PATH=~/go/bin/:$PATH
 (setq lsp-sqls-connections
     '(((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/midea_cs"))))
 #+end_src
-*** Use ejc-sql as a MySQL client (abandoned)
+*** Use ejc-sql as a MySQL client
+:properties:
+:header-args:    :tangle no
+:END:
+
+Abandoned because we have org-babel!
+
 1. install dependency package =leiningen=
 #+begin_src shell
 brew install leiningen
@@ -3291,77 +3731,56 @@ npm i -g vscode-html-languageserver-bin
   :ensure t
   :config (treemacs-icons-dired-mode))
 #+end_src
-** Development common settings
+** write document inside code comment
 #+begin_src emacs-lisp
-;; Highlight TODO
-(use-package hl-todo
+(use-package separedit
   :ensure t
-  :hook (after-init . global-hl-todo-mode)
-  :bind (:map hl-todo-mode-map
-         ("C-c t p" . hl-todo-previous)
-         ("C-c t n" . hl-todo-next)
-         ("C-c t o" . hl-todo-occur))
-  :config
-  (dolist (keyword '("BUG" "ISSUE" "NB"))
-    (cl-pushnew `(,keyword . ,(face-foreground 'error)) hl-todo-keyword-faces)))
+  :bind (:map prog-mode-map
+         ("C-c '" . separedit))
+  :custom
+  (separedit-default-mode 'org-mode) ;; also support markdown mode
+  (separedit-remove-trailing-spaces-in-comment t)
+  (separedit-continue-fill-column t)
+  (separedit-buffer-creation-hook #'auto-fill-mode))
 #+end_src
 * EAF settings
 EAF: Emacs Application Framework.
-** download EAF (not needed, already in melpa)
-#+begin_src emacs-lisp
+** download EAF
+1. Via =quelpa=:
+   #+begin_src emacs-lisp
 ;; (quelpa '(eaf :fetcher github
 ;;               :repo  "manateelazycat/emacs-application-framework"
 ;;               :files ("*")))
-#+end_src
+   #+end_src
+2. Via git
+   #+begin_src shell -n :file-name: temp.sh
+git clone --depth=1 -b master https://github.com/manateelazycat/emacs-application-framework.git ~/.emacs.d/lisp/eaf/
+   #+end_src
+
 ** download dependencies
 For non-Mac system, we can use =M-x eaf-install-dependencies= to install depandencies.
 
 If in MacOS, you should install dependencies by hand:
 #+begin_src shell
-# 1. epc
-pip install epc
+# 1. pip packages dependencies install
+pip install epc PyQt5 PyQt5-sip PyQtWebEngine wmctrl pygetwindow mac-app-frontmost PyMuPDF qrcode qtconsole retrying
 
-# 2. pyqt5
-brew install pyqt5
-
-# 3. PyQt5-sip
-pip install PyQt5-sip
-
-# 4. pyqtwebengine
-pip install PyQtWebEngine
-
-# 5. wmctl
-brew install wmctrl
-
-# 6. xdotool
+# 2. brew packages dependencies install
 brew install xdotool
-
-# 7. pygetwindow
-pip install pygetwindow
-
-# 8. mac-app-frontmost
-pip install mac-app-frontmost
-
-# 9. PyMuPDF
 brew install mupdf-tools
-pip install PyMuPDF
 
-# 10. qrcode
-pip install qrcode
-
-# 11. qtconsole
-pip install qtconsole
-
-# 12. retrying
-pip install retrying
-
-# 13. darkreader
+# 3. npm packages dependencies install
 npm install darkreader
+
+# 4. node modules install
+cd ~/.emacs.d/elpa/eaf-20210324.653
+npm install
 #+end_src
 ** EAF settings
 #+begin_src emacs-lisp
 (use-package eaf
   :ensure t
+  :quelpa (eaf :fetcher github :repo "manateelazycat/emacs-application-framework")
   :init
   (use-package epc :defer t :ensure t)
   (use-package ctable :defer t :ensure t)
@@ -3386,7 +3805,322 @@ npm install darkreader
   (eaf-bind-key take_photo "p" eaf-camera-keybinding)
   (eaf-bind-key nil "M-q" eaf-browser-keybinding)) ;; unbind, see more in the Wiki
 #+end_src
-* Mail settings
+* Gnus settings
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
+
+** Gnus settings
+#+begin_src emacs-lisp -n
+(use-package gnus
+  :ensure nil
+  :custom
+  (gnus-use-cache t)
+  (gnus-use-scoring nil)
+  (gnus-keep-backlog 10)
+  (gnus-suppress-duplicates t)
+  (gnus-novice-user nil)
+  (gnus-expert-user t)
+  (gnus-interactive-exit 'quiet)
+  (gnus-dbus-close-on-sleep t)
+  (gnus-use-cross-reference nil)
+  (gnus-inhibit-startup-message nil)
+  (gnus-home-directory (no-littering-expand-var-file-name "gnus/"))
+  (gnus-select-method '(nnimap "GMail"
+                               (nnimap-address "imap.gmail.com")
+                               (nnimap-server-port "imaps")
+                               (nnimap-stream ssl)
+                               (nnimap-expunge 'on-exit)
+                               (nnimap-streaming t)
+                               (nnimap-fetch-partial-articles "text/")
+                               (nnimap-record-commands t)
+                               (nnmail-expiry-target "nnimap+GMail:[Gmail]/Trash")
+                               (nnir-search-engine imap)
+                               ;; Client-Side settings
+                               (nnimap-inbox "INBOX")))
+  (gnus-secondary-select-methods '((nntp "gmane" (nntp-address "news.gmane.io"))
+                                   (nntp "nntp.lore.kernel.org"))))
+#+end_src
+
+** Group mode commands for Gnus:
+#+begin_src emacs-lisp -n
+(use-package gnus-group
+  :ensure nil
+  :defines gnus-tmp-group
+  :after gnus
+  :hook ((gnus-group-mode . gnus-topic-mode)
+         (gnus-select-group . gnus-group-set-timestamp))
+  :config
+  (defun gnus-user-format-function-d (_)
+    (let ((time (gnus-group-timestamp gnus-tmp-group)))
+      (if time
+          (format-time-string "%F %H:%M" time)
+        "")))
+  :custom-face
+  (gnus-group-mail-1         ((t (:foreground "DeepPink1" :bold t))))
+  (gnus-group-mail-1-empty   ((t (:foreground "DeepPink4" :italic t))))
+  (gnus-group-mail-2         ((t (:foreground "HotPink1" :bold t))))
+  (gnus-group-mail-2-empty   ((t (:foreground "HotPink4" :italic t))))
+  (gnus-group-mail-3         ((t (:foreground "magenta1" :bold t))))
+  (gnus-group-mail-3-empty   ((t (:foreground "magenta4" :italic t))))
+  (gnus-group-mail-low       ((t (:foreground "SteelBlue1" :bold t))))
+  (gnus-group-mail-low-empty ((t (:foreground "SteelBlue4" :italic t))))
+  (gnus-group-news-1         ((t (:foreground "DarkSeaGreen1" :bold t))))
+  (gnus-group-news-1-empty   ((t (:foreground "DarkSeaGreen4" :italic t))))
+  (gnus-group-news-2         ((t (:foreground "CadetBlue1" :bold t))))
+  (gnus-group-news-2-empty   ((t (:foreground "CadetBlue4" :italic t))))
+  (gnus-group-news-3         ((t (:foreground "RoyalBlue1" :bold t))))
+  (gnus-group-news-3-empty   ((t (:foreground "RoyalBlue4" :italic t))))
+  (gnus-group-news-low       ((t (:foreground "SkyBlue1" :bold t))))
+  (gnus-group-news-low-empty ((t (:foreground "SkyBlue4" :italic t))))
+  :custom
+  ;;          indentation ------------.
+  ;;  #      process mark ----------. |
+  ;;                level --------. | |
+  ;;           subscribed ------. | | |
+  ;;  %          new mail ----. | | | |
+  ;;  *   marked articles --. | | | | |
+  ;;                        | | | | | |  Ticked    New     Unread  open-status Group
+  (gnus-group-line-format "%M%m%S%L%p%P %1(%7i%) %3(%7U%) %3(%7y%) %4(%B%-45G%) %ud\n")
+  (gnus-group-sort-function '(gnus-group-sort-by-level gnus-group-sort-by-alphabet))
+  (gnus-group-highlight '(;; Mail
+                          ((and mailp (eq level 1) (= unread 0)) . gnus-group-mail-1-empty)
+                          ((and mailp (eq level 1))              . gnus-group-mail-1)
+                          ((and mailp (eq level 2) (= unread 0)) . gnus-group-mail-2-empty)
+                          ((and mailp (eq level 2))              . gnus-group-mail-2)
+                          ((and mailp (eq level 3) (= unread 0)) . gnus-group-mail-3-empty)
+                          ((and mailp (eq level 3))              . gnus-group-mail-3)
+                          ((and mailp              (= unread 0)) . gnus-group-mail-low-empty)
+                          ((and mailp)                           . gnus-group-mail-low)
+                          ;; News
+                          ((and (eq level 1) (= unread 0)) . gnus-group-news-1-empty)
+                          ((and (eq level 1))              . gnus-group-news-1)
+                          ((and (eq level 2) (= unread 0)) . gnus-group-news-2-empty)
+                          ((and (eq level 2))              . gnus-group-news-2)
+                          ((and (eq level 3) (= unread 0)) . gnus-group-news-3-empty)
+                          ((and (eq level 3))              . gnus-group-news-3)
+                          ((and              (= unread 0)) . gnus-group-news-low-empty)
+                          (t                               . gnus-group-news-low))))
+#+end_src
+
+** A folding minor mode for Gnus group buffers
+#+begin_src emacs-lisp -n
+(use-package gnus-topic
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-topic-indent-level 2)
+  (gnus-topic-display-empty-topics t))
+
+#+end_src
+
+** Summary mode commands for gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-sum
+  :ensure nil
+  :after gnus
+  :custom
+  ;; Pretty marks
+  (gnus-sum-thread-tree-root            "┌ ")
+  (gnus-sum-thread-tree-false-root      "◌ ")
+  (gnus-sum-thread-tree-single-indent   "◎ ")
+  (gnus-sum-thread-tree-vertical        "│")
+  (gnus-sum-thread-tree-indent          "  ")
+  (gnus-sum-thread-tree-leaf-with-other "├─►")
+  (gnus-sum-thread-tree-single-leaf     "╰─►")
+  (gnus-summary-line-format "%U%R %3d %[%-23,23f%] %B %s\n")
+  ;; Loose threads
+  (gnus-summary-make-false-root 'adopt)
+  (gnus-simplify-subject-functions '(gnus-simplify-subject-re gnus-simplify-whitespace))
+  (gnus-summary-thread-gathering-function 'gnus-gather-threads-by-subject)
+  ;; Filling in threads
+  ;; 2 old articles are enough for context
+  (gnus-fetch-old-headers 2)
+  (gnus-fetch-old-ephemeral-headers 2)
+  (gnus-build-sparse-threads 'some)
+  ;; More threading
+  (gnus-show-threads t)
+  (gnus-thread-indent-level 2)
+  (gnus-thread-hide-subtree nil)
+  (gnus-sort-gathered-threads-function 'gnus-thread-sort-by-date)
+  ;; Sorting
+  (gnus-thread-sort-functions '(gnus-thread-sort-by-most-recent-date))
+  (gnus-subthread-sort-functions '(gnus-thread-sort-by-date))
+  ;; Viewing
+  (gnus-view-pseudos 'automatic)
+  (gnus-view-pseudos-separately t)
+  (gnus-view-pseudo-asynchronously t)
+  ;; No auto select
+  (gnus-auto-select-first nil)
+  (gnus-auto-select-next nil)
+  (gnus-paging-select-next nil)
+  ;; Misc
+  (gnus-summary-ignore-duplicates t)
+  (gnus-summary-display-while-building t))
+#+end_src
+
+** Article mode for Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-art
+  :ensure nil
+  :after gnus
+  :custom
+  ;; No way to slow down my Gnus
+  (gnus-treat-from-picon nil)
+  (gnus-treat-mail-picon nil)
+  (gnus-treat-newsgroups-picon nil)
+  (gnus-treat-from-gravatar nil)
+  (gnus-treat-mail-gravatar nil)
+  (gnus-treat-body-boundary nil)
+  (gnus-treat-display-x-face nil)
+  (gnus-treat-display-face nil)
+  (gnus-visible-headers (rx line-start (or "From"
+                                           "Subject"
+                                           "Mail-Followup-To"
+                                           "Date"
+                                           "To"
+                                           "Cc"
+                                           "Newsgroups"
+                                           "User-Agent"
+                                           "X-Mailer"
+                                           "X-Newsreader")
+                            ":"))
+  ;; Block images
+  (gnus-inhibit-images t)
+  (gnus-article-sort-functions '((not gnus-article-sort-by-number)
+                                 (not gnus-article-sort-by-date)))
+  (gnus-article-show-cursor t)
+  (gnus-article-browse-delete-temp t))
+#+end_src
+
+** Asynchronous support for Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-async
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-asynchronous t)
+  (gnus-use-header-prefetch t))
+#+end_src
+
+** Startup functions for Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-start
+  :ensure nil
+  :after gnus
+  :custom
+  ;; No, thanks
+  (gnus-check-new-newsgroups nil)
+  (gnus-save-killed-list nil)
+  ;; Record Gnus data (reading articles, killing/subscribing groups)
+  (gnus-use-dribble-file t)
+  (gnus-always-read-dribble-file t)
+  (gnus-save-newsrc-file nil)
+  (gnus-read-newsrc-file nil)
+  (gnus-subscribe-newsgroup-method 'gnus-subscribe-interactively))
+#+end_src
+
+** Mail and post interface for Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-msg
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-gcc-mark-as-read t))
+#+end_src
+
+** Cache interface for Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-cache
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-cache-enter-articles '(ticked dormant unread))
+  (gnus-cache-remove-articles '(read))
+  (gnus-cacheable-groups "^\\(nntp\\|nnimap\\)"))
+#+end_src
+
+** Send notifications on new messages in Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-notifications
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-notifications-minimum-level 1)
+  (gnus-notifications-use-gravatar nil)
+  (gnus-notifications-use-google-contacts nil))
+#+end_src
+
+** Bookmarks in Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-bookmark
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-bookmark-bookmark-inline-details '(subject author)))
+#+end_src
+
+** Search in Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-search
+  :ensure nil
+  :when (>= emacs-major-version 28)
+  :after gnus
+  :custom
+  (gnus-search-use-parsed-queries t))
+#+end_src
+
+** Extract (uu)encoded files in Gnus
+#+begin_src emacs-lisp -n
+(use-package gnus-uu
+  :ensure nil
+  :after gnus
+  :custom
+  (gnus-uu-kill-carriage-return t)
+  (gnus-uu-ignore-files-by-type "audio/\\|video/mpeg"))
+#+end_src
+
+** Mail support functions for the Gnus mail backends
+#+begin_src emacs-lisp -n
+(use-package nnmail
+  :ensure nil
+  :after gnus
+  :custom
+  (nnmail-expiry-wait 30)
+  (nnmail-split-methods 'nnmail-split-fancy)
+  (nnmail-treat-duplicates 'delete))
+#+end_src
+
+** Email settings in Gnus
+#+begin_src emacs-lisp -n
+(use-package message
+  :ensure nil
+  :hook (message-mode . auto-fill-mode)
+  :custom
+  (user-full-name "Randolph Huang")
+  (user-mail-address "xiaojianghuang@gmail.com")
+  (message-kill-buffer-on-exit t)
+  (message-mail-alias-type 'ecomplete)
+  (message-send-mail-function #'message-use-send-mail-function)
+  (message-signature user-full-name))
+
+(use-package sendmail
+  :ensure nil
+  :custom
+  (send-mail-function #'smtpmail-send-it))
+
+(use-package smtpmail
+  :ensure nil
+  :custom
+  (smtpmail-smtp-server "smtp.gmail.com")
+  (smtpmail-smtp-user user-mail-address)
+  (smtpmail-smtp-service 465)
+  (smptmail-stream-type 'ssl))
+#+end_src
+* TODO MU4E settings
+#+begin_src emacs-lisp -n
+
+#+end_src
 
 * Useful tools
 ** Which-key
@@ -3404,7 +4138,7 @@ npm install darkreader
     "C-x n" "narrow"
     "C-x t" "tab")
   :custom
-  (which-key-idle-delay 0.5)
+  (which-key-idle-delay 0.7)
   (which-key-add-column-padding 1))
 #+end_src
 ** Avy, using Meta-s to quickly access defined char
@@ -3460,122 +4194,132 @@ npm install darkreader
 #+end_src
 ** Smartparens
 #+begin_src emacs-lisp
-(use-package smartparens
-  :ensure t
-  :hook ((after-init . show-smartparens-global-mode)
-         ((prog-mode org-mode) . smartparens-mode))
-  :bind (:map smartparens-mode-map
-              ;; paredit bindings
-              ("C-M-n" . sp-forward-sexp)
-              ("C-M-p" . sp-backward-sexp)
-              ("C-M-d" . sp-down-sexp)
-              ("C-M-u" . sp-backward-up-sexp)
-              ;; ("C-M-b" . sp-up-sexp)
-              ;; ("C-M-f" . sp-backward-down-sexp)
-              ;; ("M-s" . sp-splice-sexp)
-              ;; ("M-<up>" . sp-splice-sexp-killing-backward)
-              ;; ("M-<down>" . sp-splice-sexp-killing-forward)
-              ;; ("M-r" . sp-splice-sexp-killing-around)
-              ;; ("M-(" . sp-wrap-round)
-              ;; ("M-{" . sp-wrap-curly)
-              ;; ("C-)" . sp-forward-slurp-sexp)
-              ;; ("C-<right>" . sp-forward-slurp-sexp)
-              ;; ("C-}" . sp-forward-barf-sexp)
-              ;; ("C-<left>" . sp-forward-barf-sexp)
-              ;; ("C-(" . sp-backward-slurp-sexp)
-              ;; ("C-M-<left>" . sp-backward-slurp-sexp)
-              ;; ("C-{" . sp-backward-barf-sexp)
-              ;; ("C-M-<right>" . sp-backward-barf-sexp)
-              ;; ("M-S" . sp-split-sexp)
-              ;; ;; mine
-              ;; ("C-M-k" . sp-kill-sexp)
-              ;; ("C-M-w" . sp-copy-sexp)
-              ;; ("M-@" . sp-mark-sexp)
-              )
-  :diminish smartparens-mode
-  :init
-  (setq ;; avoid slowness when editing inside a comment for modes with
-        ;; parenthesized comments (e.g. coq)
-        ;; sp-show-pair-delay 0.2
-        sp-show-pair-from-inside nil
-        sp-cancel-autoskip-on-backward-movement nil
-        sp-highlight-pair-overlay nil
-        sp-highlight-wrap-overlay nil
-        sp-highlight-wrap-tag-overlay nil)
-  :config
-    ;;;;;;;;;;;;;;;;;;
-  ;; pair management
-  (sp-local-pair 'minibuffer-inactive-mode "'" nil :actions nil)
-  (sp-local-pair 'web-mode "<" nil :when '(my/sp-web-mode-is-code-context))
+;; (use-package smartparens
+;;   :ensure t
+;;   :hook ((after-init . show-smartparens-global-mode)
+;;          ((prog-mode org-mode) . smartparens-mode))
+;;   :bind (:map smartparens-mode-map
+;;               ;; paredit bindings
+;;               ("C-M-n" . sp-forward-sexp)
+;;               ("C-M-p" . sp-backward-sexp)
+;;               ("C-M-d" . sp-down-sexp)
+;;               ("C-M-u" . sp-backward-up-sexp)
+;;               ;; ("C-M-b" . sp-up-sexp)
+;;               ;; ("C-M-f" . sp-backward-down-sexp)
+;;               ;; ("M-s" . sp-splice-sexp)
+;;               ;; ("M-<up>" . sp-splice-sexp-killing-backward)
+;;               ;; ("M-<down>" . sp-splice-sexp-killing-forward)
+;;               ;; ("M-r" . sp-splice-sexp-killing-around)
+;;               ;; ("M-(" . sp-wrap-round)
+;;               ;; ("M-{" . sp-wrap-curly)
+;;               ;; ("C-)" . sp-forward-slurp-sexp)
+;;               ;; ("C-<right>" . sp-forward-slurp-sexp)
+;;               ;; ("C-}" . sp-forward-barf-sexp)
+;;               ;; ("C-<left>" . sp-forward-barf-sexp)
+;;               ;; ("C-(" . sp-backward-slurp-sexp)
+;;               ;; ("C-M-<left>" . sp-backward-slurp-sexp)
+;;               ;; ("C-{" . sp-backward-barf-sexp)
+;;               ;; ("C-M-<right>" . sp-backward-barf-sexp)
+;;               ;; ("M-S" . sp-split-sexp)
+;;               ;; ;; mine
+;;               ;; ("C-M-k" . sp-kill-sexp)
+;;               ;; ("C-M-w" . sp-copy-sexp)
+;;               ;; ("M-@" . sp-mark-sexp)
+;;               )
+;;   :diminish smartparens-mode
+;;   :init
+;;   (setq ;; avoid slowness when editing inside a comment for modes with
+;;         ;; parenthesized comments (e.g. coq)
+;;         ;; sp-show-pair-delay 0.2
+;;         sp-show-pair-from-inside nil
+;;         sp-cancel-autoskip-on-backward-movement nil
+;;         sp-highlight-pair-overlay nil
+;;         sp-highlight-wrap-overlay nil
+;;         sp-highlight-wrap-tag-overlay nil)
+;;   :config
+;;     ;;;;;;;;;;;;;;;;;;
+;;   ;; pair management
+;;   (sp-local-pair 'minibuffer-inactive-mode "'" nil :actions nil)
+;;   (sp-local-pair 'web-mode "<" nil :when '(my/sp-web-mode-is-code-context))
 
-  (defun my/sp-web-mode-is-code-context (id action context)
-    (when (and (eq action 'insert)
-               (not (or (get-text-property (point) 'part-side)
-                        (get-text-property (point) 'block-side))))
-      t))
+;;   (defun my/sp-web-mode-is-code-context (id action context)
+;;     (when (and (eq action 'insert)
+;;                (not (or (get-text-property (point) 'part-side)
+;;                         (get-text-property (point) 'block-side))))
+;;       t))
 
-  ;;; markdown-mode
-  (sp-with-modes '(markdown-mode gfm-mode rst-mode)
-    (sp-local-pair "*" "*")
-    (sp-local-tag "2" "**" "**")
-    (sp-local-tag "s" "```scheme" "```")
-    (sp-local-tag "<"  "<_>" "</_>" :transform 'sp-match-sgml-tags))
+;;   ;;; markdown-mode
+;;   (sp-with-modes '(markdown-mode gfm-mode rst-mode)
+;;     (sp-local-pair "*" "*")
+;;     (sp-local-tag "2" "**" "**")
+;;     (sp-local-tag "s" "```scheme" "```")
+;;     (sp-local-tag "<"  "<_>" "</_>" :transform 'sp-match-sgml-tags))
 
-  ;;; tex-mode latex-mode
-  (sp-with-modes '(tex-mode plain-tex-mode latex-mode)
-    (sp-local-tag "i" "1d5f8e69396c521f645375107197ea4dfbc7b792quot;<" "1d5f8e69396c521f645375107197ea4dfbc7b792quot;>"))
+;;   ;;; tex-mode latex-mode
+;;   (sp-with-modes '(tex-mode plain-tex-mode latex-mode)
+;;     (sp-local-tag "i" "1d5f8e69396c521f645375107197ea4dfbc7b792quot;<" "1d5f8e69396c521f645375107197ea4dfbc7b792quot;>"))
 
-  ;;; html-mode
-  (sp-with-modes '(html-mode sgml-mode web-mode)
-    (sp-local-pair "<" ">"))
+;;   ;;; html-mode
+;;   (sp-with-modes '(html-mode sgml-mode web-mode)
+;;     (sp-local-pair "<" ">"))
 
-  ;;; lisp modes
-  (sp-with-modes sp--lisp-modes
-    (sp-local-pair "(" nil
-                   :pre-handlers '(my-add-space-before-sexp-insertion)
-                   :post-handlers '(my-add-space-after-sexp-insertion)))
+;;   ;;; lisp modes
+;;   (sp-with-modes sp--lisp-modes
+;;     (sp-local-pair "(" nil
+;;                    :pre-handlers '(my-add-space-before-sexp-insertion)
+;;                    :post-handlers '(my-add-space-after-sexp-insertion)))
 
-  (defun my-add-space-after-sexp-insertion (id action _context)
-    (when (eq action 'insert)
-      (save-excursion
-        (forward-char (sp-get-pair id :cl-l))
-        (when (or (eq (char-syntax (following-char)) ?w)
-                  (looking-at (sp--get-opening-regexp)))
-          (insert " ")))))
+;;   (defun my-add-space-after-sexp-insertion (id action _context)
+;;     (when (eq action 'insert)
+;;       (save-excursion
+;;         (forward-char (sp-get-pair id :cl-l))
+;;         (when (or (eq (char-syntax (following-char)) ?w)
+;;                   (looking-at (sp--get-opening-regexp)))
+;;           (insert " ")))))
 
-  (defun my-add-space-before-sexp-insertion (id action _context)
-    (when (eq action 'insert)
-      (save-excursion
-        (backward-char (length id))
-        (when (or (eq (char-syntax (preceding-char)) ?w)
-                  (and (looking-back (sp--get-closing-regexp))
-                       (not (eq (char-syntax (preceding-char)) ?'))))
-          (insert " ")))))
+;;   (defun my-add-space-before-sexp-insertion (id action _context)
+;;     (when (eq action 'insert)
+;;       (save-excursion
+;;         (backward-char (length id))
+;;         (when (or (eq (char-syntax (preceding-char)) ?w)
+;;                   (and (looking-back (sp--get-closing-regexp))
+;;                        (not (eq (char-syntax (preceding-char)) ?'))))
+;;           (insert " ")))))
 
-  ;;; org modes
-  (sp-with-modes 'org-mode
-    (sp-local-pair "=" "="))
-  )
+;;   ;;; org modes
+;;   (sp-with-modes 'org-mode
+;;     (sp-local-pair "=" "="))
+;;   )
 
-(use-package smartparens-config
-  :after smartparens
-  :config
-  ;; don't create a pair with single quote in minibuffer
-  (sp-local-pair 'minibuffer-inactive-mode "'" nil :actions nil)
+;; (use-package smartparens-config
+;;   :after smartparens
+;;   :config
+;;   ;; don't create a pair with single quote in minibuffer
+;;   (sp-local-pair 'minibuffer-inactive-mode "'" nil :actions nil)
 
-  ;; indent after inserting any kinds of parens
-  (defun my/smartparens-pair-newline-and-indent (id action context)
-    (save-excursion
-      (newline)
-      (indent-according-to-mode))
-    (indent-according-to-mode))
-  (sp-pair "(" nil :post-handlers
-           '(:add (my/smartparens-pair-newline-and-indent "RET")))
-  (sp-pair "{" nil :post-handlers
-           '(:add (my/smartparens-pair-newline-and-indent "RET")))
-  (sp-pair "[" nil :post-handlers
-           '(:add (my/smartparens-pair-newline-and-indent "RET")))
-  )
+;;   ;; indent after inserting any kinds of parens
+;;   (defun my/smartparens-pair-newline-and-indent (id action context)
+;;     (save-excursion
+;;       (newline)
+;;       (indent-according-to-mode))
+;;     (indent-according-to-mode))
+;;   (sp-pair "(" nil :post-handlers
+;;            '(:add (my/smartparens-pair-newline-and-indent "RET")))
+;;   (sp-pair "{" nil :post-handlers
+;;            '(:add (my/smartparens-pair-newline-and-indent "RET")))
+;;   (sp-pair "[" nil :post-handlers
+;;            '(:add (my/smartparens-pair-newline-and-indent "RET")))
+;;   )
+#+end_src
+** highlight parentheses
+This is an alternative to smartparens.
+#+begin_src emacs-lisp
+(use-package paren
+  :ensure nil
+  :hook (after-init . show-paren-mode)
+  :custom
+  (show-paren-when-point-inside-paren t)
+  (show-paren-when-point-in-periphery t))
 #+end_src
 ** Undo tree
 #+begin_src emacs-lisp
@@ -3664,7 +4408,10 @@ npm install darkreader
 ;; check and correct words via popup box
 (use-package flyspell-popup
   :ensure t
-  :bind (:map flyspell-mode-map ("C-;" . flyspell-popup-correct))
+  :bind (:map flyspell-mode-map
+              ("C-;" . flyspell-popup-correct)
+              ;; ("<return>" . newline)
+              )
   )
 #+end_src
 ** Rainbow delimiters
@@ -3674,6 +4421,10 @@ npm install darkreader
   :hook (prog-mode . rainbow-delimiters-mode))
 #+end_src
 ** Dashboard
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
+
 #+begin_src emacs-lisp
 (use-package dashboard
   :ensure t
@@ -3702,7 +4453,8 @@ npm install darkreader
   ;; (unbind-key "p" dashboard-mode-map) ;; a way to unbind key
 
   ;; show Dashboard in frames created with emacsclient -c
-  (setq initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name)))
+  (if (daemonp)
+      (setq initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name))))
 
   ;; To use it with counsel-projectile
   (setq dashboard-projects-switch-function 'counsel-projectile-switch-project-by-name)
@@ -3797,4 +4549,8 @@ npm install darkreader
 ;; ESC-ESC-b to open eaf browser
 (global-set-key (kbd "\e\eb")
                 (lambda () (interactive) (eaf-open-browser-with-history)))
+
+;; command-w to delete-window
+(global-set-key (kbd "s-w")
+                (lambda () (interactive) (delete-window)))
 #+end_src
