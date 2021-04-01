@@ -168,7 +168,7 @@ This variable tells Emacs to prefer the =.el= file if it’s newer, even if ther
 ** User info
 #+begin_src emacs-lisp
 (setq user-full-name "Randolph Huang")
-(setq user-mail-address "xiaojianghuang@gmail.com")
+(setq user-mail-address "xiaojianghuang@126.com")
 ;; set default directory to HOME
 (setq default-directory (concat (getenv "HOME") "/"))
 ;; Set the load path to user customized directories
@@ -1787,11 +1787,11 @@ otherwise use the subtree title."
   ;; if you want to keep all org files in monitor, use following setting:
   ;; (org-agenda-files (directory-files-recursively "~/org/" "\\.org$"))
   ;; if you want to set specific org files to be monitored, use follwoing:
-  ;; (setq org-agenda-files
-  ;;       '("~/org/Tasks.org"
-  ;;         "~/org/Habits.org"
-  ;;         "~/org/Birthdays.org"))
-  (org-agenda-files (list (expand-file-name "tasks.org" org-directory)))
+  (org-agenda-files
+        '("~/org/tasks.org"
+          "~/org/habits.org"
+          "~/org/birthdays.org"))
+  ;; (org-agenda-files (list (expand-file-name "tasks.org" org-directory)))
   (org-agenda-diary-file (expand-file-name "diary.org" org-directory))
   (org-agenda-insert-diary-extract-time t)
   (org-agenda-compact-blocks t)
@@ -3536,11 +3536,11 @@ This Server supports automatic install (need has npm installed as dependency). I
   )
 #+end_src
 ** Jupyter settings
-=Emacs Jupyter= is another choice similar as =EIN= while the experience is better.
+=Emacs Jupyter= is another choice similar as =EIN= while the experience is better in my opinion.
 #+begin_src emacs-lisp
 (use-package jupyter
   :ensure t
-  :defer t
+  :defer 10
   :after org
   ;; :bind
   ;; (:map jupyter-repl-mode-map
@@ -3872,7 +3872,7 @@ npm install
   (eaf-bind-key nil "M-q" eaf-browser-keybinding)) ;; unbind, see more in the Wiki
 #+end_src
 * Gnus settings
-:PROPERTIES:
+:properties:
 :header-args:    :tangle no
 :END:
 
@@ -3892,23 +3892,24 @@ npm install
   (gnus-use-cross-reference nil)
   (gnus-inhibit-startup-message nil)
   (gnus-home-directory (no-littering-expand-var-file-name "gnus/"))
-  (gnus-select-method '(nnimap "GMail"
-                               (nnimap-address "imap.gmail.com")
+  (gnus-select-method '(nnimap "126"
+                               (nnimap-address "imap.126.com")
                                (nnimap-server-port "imaps")
                                (nnimap-stream ssl)
                                (nnimap-expunge 'on-exit)
                                (nnimap-streaming t)
-                               (nnimap-fetch-partial-articles "text/")
+                               ;; (nnimap-fetch-partial-articles "text/")
                                (nnimap-record-commands t)
-                               (nnmail-expiry-target "nnimap+GMail:[Gmail]/Trash")
+                               ;; (nnmail-expiry-target "nnimap+GMail:[Gmail]/Trash")
                                (nnir-search-engine imap)
                                ;; Client-Side settings
-                               (nnimap-inbox "INBOX")))
+                               ;; (nnimap-inbox "INBOX")
+                               ))
   (gnus-secondary-select-methods '((nntp "gmane" (nntp-address "news.gmane.io"))
                                    (nntp "nntp.lore.kernel.org"))))
 #+end_src
 
-** Group mode commands for Gnus:
+** Group mode commands for Gnus
 #+begin_src emacs-lisp -n
 (use-package gnus-group
   :ensure nil
@@ -4164,7 +4165,7 @@ npm install
   :hook (message-mode . auto-fill-mode)
   :custom
   (user-full-name "Randolph Huang")
-  (user-mail-address "xiaojianghuang@gmail.com")
+  (user-mail-address "xiaojianghuang@126.com")
   (message-kill-buffer-on-exit t)
   (message-mail-alias-type 'ecomplete)
   (message-send-mail-function #'message-use-send-mail-function)
@@ -4178,9 +4179,11 @@ npm install
 (use-package smtpmail
   :ensure nil
   :custom
-  (smtpmail-smtp-server "smtp.gmail.com")
+  (smtpmail-smtp-server "smtp.126.com")
   (smtpmail-smtp-user user-mail-address)
   (smtpmail-smtp-service 465)
+  (smtpmail-debug-info t)
+  (smtpmail-debug-verb t)
   (smptmail-stream-type 'ssl))
 #+end_src
 * TODO MU4E settings
@@ -4540,12 +4543,12 @@ This is an alternative to smartparens.
            "My Emacs Github" "Browse My EMACS Homepage"
            (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
           (,(all-the-icons-fileicon "elisp" :height 1.0 :v-adjust -0.1)
-           "Emacs Configuration" "" (lambda (&rest _) (edit-configs)))
+           "Emacs Configuration" "" (lambda (&rest _) (open-emacsconfig)))
           (,(all-the-icons-faicon "cogs" :height 1.0 :v-adjust -0.1)
            "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))
      `((("" "My Emacs Github" "Browse My EMACS Homepage"
          (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
-        ("" "Emacs Configuration" "" (lambda (&rest _) (edit-configs)))
+        ("" "Emacs Configuration" "" (lambda (&rest _) (open-emacsconifg)))
         ("" "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))))
   )
 #+end_src
@@ -4616,7 +4619,7 @@ Helpful adds a lot of very helpful (get it?) information to Emacs’ describe- c
 
 ;; ESC-ESC-e to open emacs-config.org
 (global-set-key (kbd "\e\ee")
-                (lambda () (interactive) (edit-configs)))
+                (lambda () (interactive) (open-emacsconfig)))
 
 ;; ESC-ESC-f to use rg to search in org file
 (global-set-key (kbd "\e\ef")
