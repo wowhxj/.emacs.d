@@ -71,13 +71,20 @@ Use the following keywords ordering for =use-package=:
 - :custom
 
 ** Auto update package
+:properties:
+:header-args:    :tangle no
+:END:
+
 #+begin_src emacs-lisp
-;; auto update packages
 (use-package auto-package-update
   :ensure t
+  :if (not (daemonp))
+  :custom
+  (auto-package-update-interval 7) ;; in days
+  (auto-package-update-prompt-before-update t)
+  (auto-package-update-delete-old-versions t)
+  (auto-package-update-hide-results t)
   :config
-  (setq auto-package-update-delete-old-versions t)
-  (setq auto-package-update-hide-results t)
   (auto-package-update-maybe))
 #+end_src
 ** quelpa, some packages for example eaf would be downloaded via quelpa.
@@ -160,10 +167,33 @@ This variable tells Emacs to prefer the =.el= file if it’s newer, even if ther
 * Network settings
 ** proxy settings
 #+begin_src emacs-lisp
-(setq url-proxy-services
-      '(("http"  . "127.0.0.1:6152")
-        ("https" . "127.0.0.1:6152")))
+;; (setq url-proxy-services
+;;       '(("http"  . "127.0.0.1:6152")
+;;         ("https" . "127.0.0.1:6152")))
 #+end_src
+** with proxy
+To make codes using proxy.
+#+begin_src emacs-lisp -n
+(use-package with-proxy
+  :ensure t
+  )
+#+end_src
+
+To use with-proxy:
+#+begin_example
+;; 1. 使用默认代理设置
+(with-proxy
+  ;; 请求代码写在这里
+  )
+
+;; 2. 使用自定义代理设置
+(with-proxy
+  :http-server "127.0.0.1:1081"
+  :no-proxy '("localhost" "127.0.0.1" "192.168.*" "10.*")
+  ;; 请求代码写在这里
+  )
+#+end_example
+
 * Const and func definition
 ** User info
 #+begin_src emacs-lisp
@@ -224,6 +254,13 @@ This variable tells Emacs to prefer the =.el= file if it’s newer, even if ther
   "Opens emacs-config.org file."
   (interactive)
   (find-file "~/.emacs.d/emacs-config.org"))
+
+(defun save-all-buffers ()
+  "Instead of `save-buffer', save all opened buffers by calling `save-some-buffers' with ARG t."
+  (interactive)
+  (save-some-buffers t))
+(global-set-key (kbd "C-x C-s") nil)
+(global-set-key (kbd "C-x C-s") #'save-all-buffers)
 #+end_src
 * Encryption
 ** Authentication sources
@@ -252,6 +289,11 @@ gpg --list-keys
 #+begin_example
 machine yoursitename login youremailaccount password yourpassword
 #+end_example
+** Fix Easy-PG
+Emacs did not bring up the interface to enter the passphrase for my secret key. See [[https://colinxy.github.io/software-installation/2016/09/24/emacs25-easypg-issue.html][Fix Easy-PG issure in Emacs 25.1]] for details. Even in 27.2, this problem still exists.
+#+begin_src emacs-lisp -n
+(setq epa-pinentry-mode 'loopback)
+#+end_src
 * UI settings
 ** Basic UI settings
 *** Frame settings
@@ -421,7 +463,7 @@ Back to previous position.
 Make word editing and motion more fine-grained.
 #+begin_src emacs-lisp -n
 (use-package subword
-  :ensure t
+  :ensure nil
   :diminish subword-mode
   ;; need to load after diminish so it gets diminished
   :after (diminish)
@@ -782,13 +824,15 @@ Run server mode as possible.
                   (mode . term-mode)
                   (mode . shell-mode)
                   (mode . eshell-mode)))
-      ("Mail" (or (mode . mail-mode)
-                  (mode . message-mode)
-                  (mode . gnus-group-mode)
-                  (mode . gnus-summary-mode)
-                  (mode . gnus-article-mode)
-                  (name . "\\*imap log\\*")
-                  (name . "\\.newsrc-dribble")))
+      ;; ("Mail" (or (mode . mail-mode)
+      ;;             (mode . message-mode)
+      ;;             (mode . gnus-group-mode)
+      ;;             (mode . gnus-summary-mode)
+      ;;             (mode . gnus-article-mode)
+      ;;             (name . "\\*imap log\\*")
+      ;;             (name . "\\.newsrc-dribble")))
+      ("MU4E" (or (mode . mu4e-compose-mode)
+                  (name . "\*mu4e\*")))
       ("Conf" (or (mode . yaml-mode)
                   (mode . conf-mode)))
       ("Dict" (or (mode . osx-dictionary-mode)
@@ -2874,7 +2918,7 @@ ARGS are passed to the PROGRAM."
   (company-tooltip-flip-when-above t)
   (company-tooltip-offset-display nil)
   (company-tooltip-width-grow-only t)
-    ;; complete `abbrev' only in current buffer
+  ;; complete `abbrev' only in current buffer
   (company-dabbrev-other-buffers nil)
   ;; make dabbrev case-sensitive
   (company-dabbrev-ignore-case nil)
@@ -2912,12 +2956,21 @@ If all failed, try to complete the common part with `company-complete-common'"
 #+begin_src emacs-lisp
 (use-package company-quickhelp
   :ensure t
-  :after company
-  :config
-  (setq company-quickhelp-idle-delay 0.8)
-  (company-quickhelp-mode 1))
+  :defines company-quickhelp-delay
+  :bind (:map company-active-map
+              ([remap company-show-doc-buffer] . company-quickhelp-manual-begin))
+  :hook (global-company-mode . company-quickhelp-mode)
+  :init (setq company-quickhelp-delay 0.5))
+
+;; (use-package company-quickhelp
+;;   :ensure t
+;;   :after company
+;;   :config
+;;   (setq company-quickhelp-idle-delay 0.8)
+;;   (company-quickhelp-mode 1))
 #+end_src
 ** company box frontend
+
 #+begin_src emacs-lisp
 (use-package company-box
   :ensure t
@@ -3153,39 +3206,82 @@ Else, call `comment-or-uncomment-region' on the current line."
 #+end_src
 ** Flycheck and flymake settings
 #+begin_src emacs-lisp
+;; (use-package flycheck
+;;   :ensure t
+;;   :diminish
+;;   :commands flycheck-redefine-standard-error-levels
+;;   ;; :hook (after-init . global-flycheck-mode)
+;;   :init (setq ;; flycheck-global-modes
+;;               ;; '(not text-mode outline-mode fundamental-mode lisp-interaction-mode lsp-mode python-mode org-mode diff-mode shell-mode eshell-mode term-mode vterm-mode)
+;;               flycheck-emacs-lisp-load-path 'inherit
+;;               flycheck-indication-mode (if (display-graphic-p)
+;;                                            'right-fringe
+;;                                          'right-margin)
+;;               ;; Only check while saving and opening files
+;;               flycheck-check-syntax-automatically '(save mode-enabled))
+;;   :config
+;;   ;; Prettify indication styles
+;;   (when (fboundp 'define-fringe-bitmap)
+;;     (define-fringe-bitmap 'flycheck-fringe-bitmap-arrow
+;;       [16 48 112 240 112 48 16] nil nil 'center))
+;;   (flycheck-redefine-standard-error-levels "⏴" 'flycheck-fringe-bitmap-arrow)
+
+;;   ;; Display Flycheck errors
+;;   (use-package flycheck-posframe
+;;     :ensure t
+;;     :custom-face
+;;     (flycheck-posframe-face ((t (:foreground ,(face-foreground 'success)))))
+;;     (flycheck-posframe-info-face ((t (:foreground ,(face-foreground 'success)))))
+;;     :hook (flycheck-mode . flycheck-posframe-mode)
+;;     :init (setq flycheck-posframe-border-width 4
+;;                 flycheck-posframe-inhibit-functions
+;;                 '((lambda (&rest _) (bound-and-true-p company-backend)))))
+;;   (use-package flycheck-popup-tip
+;;     :ensure t
+;;     :hook (flycheck-mode . flycheck-popup-tip-mode)))
+
 (use-package flycheck
   :ensure t
+  :defer t
   :diminish
-  :commands flycheck-redefine-standard-error-levels
-  ;; :hook (after-init . global-flycheck-mode)
-  :init (setq ;; flycheck-global-modes
-              ;; '(not text-mode outline-mode fundamental-mode lisp-interaction-mode lsp-mode python-mode org-mode diff-mode shell-mode eshell-mode term-mode vterm-mode)
-              flycheck-emacs-lisp-load-path 'inherit
-              flycheck-indication-mode (if (display-graphic-p)
-                                           'right-fringe
-                                         'right-margin)
-              ;; Only check while saving and opening files
-              flycheck-check-syntax-automatically '(save mode-enabled))
+  :hook (after-init . global-flycheck-mode)
+  :commands (flycheck-add-mode)
+  :custom
+  (flycheck-global-modes
+   '(not outline-mode diff-mode shell-mode eshell-mode term-mode))
+  (flycheck-emacs-lisp-load-path 'inherit)
+  (flycheck-indication-mode (if (display-graphic-p) 'right-fringe 'right-margin))
+  :init
+  (if (display-graphic-p)
+      (use-package flycheck-posframe
+        :ensure t
+        :custom-face
+        (flycheck-posframe-face ((t (:foreground ,(face-foreground 'success)))))
+        (flycheck-posframe-info-face ((t (:foreground ,(face-foreground 'success)))))
+        :hook (flycheck-mode . flycheck-posframe-mode)
+        :custom
+        (flycheck-posframe-position 'window-bottom-left-corner)
+        (flycheck-posframe-border-width 3)
+        (flycheck-posframe-inhibit-functions
+         '((lambda (&rest _) (bound-and-true-p company-backend)))))
+    (use-package flycheck-pos-tip
+      :ensure t
+      :defines flycheck-pos-tip-timeout
+      :hook (flycheck-mode . flycheck-pos-tip-mode)
+      :custom (flycheck-pos-tip-timeout 30)))
   :config
-  ;; Prettify indication styles
-  (when (fboundp 'define-fringe-bitmap)
-    (define-fringe-bitmap 'flycheck-fringe-bitmap-arrow
-      [16 48 112 240 112 48 16] nil nil 'center))
-  (flycheck-redefine-standard-error-levels "⏴" 'flycheck-fringe-bitmap-arrow)
-
-  ;; Display Flycheck errors
-  (use-package flycheck-posframe
-    :ensure t
-    :custom-face
-    (flycheck-posframe-face ((t (:foreground ,(face-foreground 'success)))))
-    (flycheck-posframe-info-face ((t (:foreground ,(face-foreground 'success)))))
-    :hook (flycheck-mode . flycheck-posframe-mode)
-    :init (setq flycheck-posframe-border-width 4
-                flycheck-posframe-inhibit-functions
-                '((lambda (&rest _) (bound-and-true-p company-backend)))))
   (use-package flycheck-popup-tip
     :ensure t
-    :hook (flycheck-mode . flycheck-popup-tip-mode)))
+    :hook (flycheck-mode . flycheck-popup-tip-mode))
+  (when (fboundp 'define-fringe-bitmap)
+    (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
+      [16 48 112 240 112 48 16] nil nil 'center))
+  (when (executable-find "vale")
+    (use-package flycheck-vale
+      :ensure t
+      :config
+      (flycheck-vale-setup)
+      (flycheck-add-mode 'vale 'latex-mode))))
 #+end_src
 ** lsp mode
 *** lsp install and settings
@@ -3846,7 +3942,7 @@ npm install
 #+begin_src emacs-lisp
 (use-package eaf
   :ensure t
-  :quelpa (eaf :fetcher github :repo "manateelazycat/emacs-application-framework")
+  ;; :quelpa (eaf :fetcher github :repo "manateelazycat/emacs-application-framework")
   :init
   (use-package epc :defer t :ensure t)
   (use-package ctable :defer t :ensure t)
@@ -3870,7 +3966,23 @@ npm install
   (eaf-bind-key scroll_down "C-p" eaf-pdf-viewer-keybinding)
   (eaf-bind-key take_photo "p" eaf-camera-keybinding)
   (eaf-bind-key nil "M-q" eaf-browser-keybinding)) ;; unbind, see more in the Wiki
+
 #+end_src
+** EAF tips
+1. select text in EAF browser
+| key | description                        |
+|-----+------------------------------------|
+| c   | activate text selection            |
+| j   | move to the next line              |
+| k   | move to the previous line          |
+| h   | move to the previous char          |
+| l   | move to the next char              |
+| b   | move to the previous word          |
+| w   | move to the next word              |
+| g   | move to the last line              |
+| o   | exchange the beginning and the end |
+| q   | quit                               |
+
 * Gnus settings
 :properties:
 :header-args:    :tangle no
@@ -4186,11 +4298,314 @@ npm install
   (smtpmail-debug-verb t)
   (smptmail-stream-type 'ssl))
 #+end_src
-* TODO MU4E settings
-#+begin_src emacs-lisp -n
-
+* MU4E settings
+** Dependencies
+Install =isync= and =mu=:
+#+begin_src shell -n :file-name: temp.sh
+brew install isync mu
 #+end_src
+** Config mbsync
+Edit =~/.emacs.d/mu4e/.mbsyncrc= file. Following is an example:
 
+#+begin_example
+# mbsyncrc based on
+# http://www.ict4g.net/adolfo/notes/2014/12/27/EmacsIMAP.html
+# ACCOUNT INFORMATION
+IMAPAccount gmail
+# Address to connect to
+Host imap.gmail.com
+User <EMAIL_HERE>
+PassCmd "gpg2 -q --for-your-eyes-only --no-tty -d ~/.emacs.d/mu4e/.mbsyncpass-<EMAIL_HERE>.gpg"
+AuthMechs LOGIN
+SSLType IMAPS
+SSLVersions TLSv1.3
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+# THEN WE SPECIFY THE LOCAL AND REMOTE STORAGE
+# - THE REMOTE STORAGE IS WHERE WE GET THE MAIL FROM (E.G., THE
+#   SPECIFICATION OF AN IMAP ACCOUNT)
+# - THE LOCAL STORAGE IS WHERE WE STORE THE EMAIL ON OUR COMPUTER
+
+# REMOTE STORAGE (USE THE IMAP ACCOUNT SPECIFIED ABOVE)
+IMAPStore gmail-remote
+Account gmail
+
+# LOCAL STORAGE (CREATE DIRECTORIES with mkdir -p ~/Maildir/gmail)
+MaildirStore gmail-local
+Path ~/Maildir/gmail/
+Inbox ~/Maildir/gmail/INBOX
+# REQUIRED ONLY IF YOU WANT TO DOWNLOAD ALL SUBFOLDERS; SYNCING SLOWS DOWN
+# SubFolders Verbatim
+
+# CONNECTIONS SPECIFY LINKS BETWEEN REMOTE AND LOCAL FOLDERS
+#
+# CONNECTIONS ARE SPECIFIED USING PATTERNS, WHICH MATCH REMOTE MAIl
+# FOLDERS. SOME COMMONLY USED PATTERS INCLUDE:
+#
+# 1 "*" TO MATCH EVERYTHING
+# 2 "!DIR" TO EXCLUDE "DIR"
+# 3 "DIR" TO MATCH DIR
+
+Channel gmail-inbox
+Far :gmail-remote:
+Near :gmail-local:
+Patterns "INBOX"
+Create Both
+Expunge Both
+SyncState *
+
+Channel gmail-sent
+Far :gmail-remote:"[Gmail]/Sent Mail"
+Near :gmail-local:"Sent Mail"
+Create Both
+Expunge Both
+SyncState *
+
+Channel gmail-all
+Far :gmail-remote:"[Gmail]/All Mail"
+Near :gmail-local:"All Mail"
+Create Both
+Expunge Both
+SyncState *
+
+Channel gmail-starred
+Far :gmail-remote:"[Gmail]/Starred"
+Near :gmail-local:"Starred"
+Create Both
+Expunge Both
+SyncState *
+
+Channel gmail-trash
+Far :gmail-remote:"[Gmail]/Trash"
+Near :gmail-local:"Trash"
+Create Both
+Expunge Both
+SyncState *
+
+# GROUPS PUT TOGETHER CHANNELS, SO THAT WE CAN INVOKE
+# MBSYNC ON A GROUP TO SYNC ALL CHANNELS
+#
+# FOR INSTANCE: "mbsync gmail" GETS MAIL FROM
+# "gmail-inbox", "gmail-sent", and "gmail-trash"
+#
+Group gmail
+Channel gmail-inbox
+Channel gmail-sent
+Channel gmail-trash
+Channel gmail-all
+Channel gmail-starred
+#+end_example
+
+#+begin_quote
+If in MacOS:
+1. change =gpg2= if you brew install =gpg=
+2. run =gpg -c ./.mbsyncpass-<EMAIL_HERE>= to encrypt your password
+3. change the certificate file location to: =/usr/local/etc/openssl@1.1/cert.pem=
+4. set SSLVersions bases on following command result:
+   =openssl s_client -connect imap.gmail.com:993 -showcerts | grep Protocol=
+#+end_quote
+** Run mbsync
+#+begin_src shell -n :file-name: temp.sh
+mbsync -c ~/.emacs.d/mu4e/.mbsyncrc -Dmn gmail
+mbsync -c ~/.emacs.d/mu4e/.mbsyncrc -a
+mu init --maildir=~/Maildir/ --my-address=YOUR_EMAIL1 --my-address=YOUR_EMAIL2
+mu index
+#+end_src
+** Config mu4e
+#+begin_src emacs-lisp -n
+(use-package mu4e
+  :ensure nil
+  :commands (mu4e make-mu4e-context)
+  :init
+  (use-package mu4e-alert
+    :ensure t
+    :defer t
+    :config
+    (setq mu4e-mu-binary "/usr/local/bin/mu")
+    (when (executable-find "notify-send")
+      (mu4e-alert-set-default-style 'libnotify))
+    :hook
+    ((after-init . mu4e-alert-enable-notifications)
+     (after-init . mu4e-alert-enable-mode-line-display)))
+  (use-package mu4e-overview :defer t)
+  :bind
+  (("\e\e m" . mu4e)
+   (:map mu4e-view-mode-map
+         ("e" . mu4e-view-save-attachment)))
+  :custom
+  (mu4e-maildir (expand-file-name "~/Mail"))
+  (mu4e-get-mail-command "mbsync -c ~/.emacs.d/mu4e/.mbsyncrc -a")
+  (mu4e-view-prefer-html t)
+  (mu4e-update-interval 180)
+  (mu4e-headers-auto-update t)
+  (mu4e-compose-format-flowed t)
+  (mu4e-view-show-images t)
+  (mu4e-change-filenames-when-moving t) ; work better for mbsync
+  (mu4e-attachment-dir "~/Downloads")
+  (message-kill-buffer-on-exit t)
+  (mu4e-compose-dont-reply-to-self t)
+  (mu4e-view-show-addresses t)
+  (mu4e-confirm-quit nil)
+  (mu4e-use-fancy-chars t)
+  (mu4e-view-use-gnus t)
+  (gnus-icalendar-org-capture-file "~/org/meetings.org") ; Prerequisite: set it to meetings org fie
+  (gnus-icalendar-org-capture-headline '("Meetings")) ; Make sure to create Calendar heading first
+  :hook
+  ((mu4e-view-mode . visual-line-mode)
+   (mu4e-compose-mode . (lambda ()
+                          (visual-line-mode)
+                          (use-hard-newlines -1)
+                          (flyspell-mode)))
+   (mu4e-view-mode . (lambda() ;; try to emulate some of the eww key-bindings
+                       (local-set-key (kbd "<tab>") 'shr-next-link)
+                       (local-set-key (kbd "<backtab>") 'shr-previous-link)))
+   (mu4e-headers-mode . (lambda ()
+                          (interactive)
+                          (setq mu4e-headers-fields
+                                `((:human-date . 25) ;; alternatively, use :date
+                                  (:flags . 6)
+                                  (:from . 22)
+                                  (:thread-subject . ,(- (window-body-width) 70)) ;; alternatively, use :subject
+                                  (:size . 7))))))
+  :config
+  (require 'mu4e-icalendar)
+  (mu4e-icalendar-setup)
+  (gnus-icalendar-org-setup)
+  (defalias 'mu4e-add-attachment 'mail-add-attachment
+    "I prefer the add-attachment function to begin wih mu4e so I can find it easily.")
+  (setq mail-user-agent (mu4e-user-agent))
+  (add-to-list 'mu4e-view-actions
+               '("ViewInBrowser" . mu4e-action-view-in-browser) t)
+  (setq mu4e-contexts
+        (list
+         (make-mu4e-context
+          :name "midea"
+          :enter-func (lambda () (mu4e-message "Entering context midea"))
+          :leave-func (lambda () (mu4e-message "Leaving context midea"))
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-match "midea" (mu4e-message-field msg :maildir))))
+          :vars '((mu4e-sent-folder . "/midea/Sent Mail")
+                  (mu4e-drafts-folder . "/midea/Drafts")
+                  (mu4e-trash-folder . "/midea/Trash")
+                  (mu4e-sent-messages-behavior . sent)
+                  (mu4e-compose-signature . user-full-name)
+                  (user-mail-address . "huangxj73@midea.com") ; Prerequisite: Set this to your email
+                  (mu4e-compose-format-flowed . t)
+                  (smtpmail-queue-dir . "~/Mail/midea/queue/cur")
+                  (message-send-mail-function . smtpmail-send-it)
+                  (smtpmail-smtp-user . "huangxj73@midea.com") ; Set to your username
+                  ;; (smtpmail-starttls-credentials . (("smtp.midea.com" 587 nil nil)))
+                  ;; (smtpmail-auth-credentials . (expand-file-name "~/.authinfo.gpg"))
+                  ;; (smtpmail-default-smtp-server . "smtp.midea.com")
+                  (smtpmail-smtp-server . "smtp.midea.com")
+                  (smtpmail-smtp-service . 465)
+                  (smtpmail-stream-type . ssl)
+                  (smtpmail-debug-info . t)
+                  (smtpmail-debug-verbose . t)
+                  (mu4e-maildir-shortcuts . ( ("/midea/INBOX"            . ?i)
+                                              ("/midea/Sent Mail" . ?s)
+                                              ("/midea/Trash"       . ?t)
+                                              ;; ("/midea/All Mail"  . ?a)
+                                              ;; ("/midea/Starred"   . ?r)
+                                              ;; ("/midea/Drafts"    . ?d)
+                                              ))))
+         (make-mu4e-context
+          :name "126"
+          :enter-func (lambda () (mu4e-message "Entering context 126"))
+          :leave-func (lambda () (mu4e-message "Leaving context 126"))
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-match "126" (mu4e-message-field msg :maildir))))
+          :vars '((mu4e-sent-folder . "/126/Sent Mail")
+                  (mu4e-drafts-folder . "/126/Drafts")
+                  (mu4e-trash-folder . "/126/Trash")
+                  (mu4e-sent-messages-behavior . sent)
+                  (mu4e-compose-signature . user-full-name)
+                  (user-mail-address . "xiaojianghuang@126.com") ; Prerequisite: Set this to your email
+                  (mu4e-compose-format-flowed . t)
+                  (smtpmail-queue-dir . "~/Mail/126/queue/cur")
+                  (message-send-mail-function . smtpmail-send-it)
+                  (smtpmail-smtp-user . "xiaojianghuang@126.com") ; Set to your username
+                  ;; (smtpmail-starttls-credentials . (("smtp.126.com" 587 nil nil)))
+                  ;; (smtpmail-auth-credentials . (expand-file-name "~/.authinfo.gpg"))
+                  (smtpmail-default-smtp-server . "smtp.126.com")
+                  (smtpmail-smtp-server . "smtp.126.com")
+                  (smtpmail-smtp-service . 465)
+                  (smtpmail-stream-type . ssl)
+                  (smtpmail-debug-info . t)
+                  (smtpmail-debug-verbose . t)
+                  (mu4e-maildir-shortcuts . ( ("/126/INBOX"            . ?i)
+                                              ("/126/Sent Mail" . ?s)
+                                              ("/126/Trash"       . ?t)
+                                              ;; ("/midea/All Mail"  . ?a)
+                                              ;; ("/midea/Starred"   . ?r)
+                                              ;; ("/midea/Drafts"    . ?d)
+                                              ))))
+         )))
+#+end_src
+** mu4e key bindings
+| key           | description                                   |
+|---------------+-----------------------------------------------|
+| n, p          | view the next, previous message               |
+| ], [          | view the next, previous unread messages       |
+| SPC           | scroll down                                   |
+| S-SPC         | scroll up                                     |
+|---------------+-----------------------------------------------|
+| Searching     |                                               |
+|---------------+-----------------------------------------------|
+| s             | search                                        |
+| e             | edit last query                               |
+| =/=             | narrow the search                             |
+| b             | search bookmark                               |
+| j             | jump to maildir                               |
+| M-left        | previous query                                |
+| M-right       | next query                                    |
+|---------------+-----------------------------------------------|
+| marking       |                                               |
+|---------------+-----------------------------------------------|
+| d             | mark for moving to trash folder               |
+| ===             | mark for removing trash flag                  |
+| D             | mark for complete deletion                    |
+| m             | mark for moving to another maildir folder     |
+| r             | mark for refiling                             |
+| +, -          | mark for flagging/unflagging                  |
+| u             | unmark message at point                       |
+| U             | unmark all messages                           |
+| %             | mark based on regular expression              |
+| T             | mark whole thread                             |
+| x             | execute actions                               |
+|---------------+-----------------------------------------------|
+| composition   |                                               |
+|---------------+-----------------------------------------------|
+| R,F,C         | reply/forward/compose                         |
+| E             | edit (only allowed for draft messages)        |
+|---------------+-----------------------------------------------|
+| actions       |                                               |
+|---------------+-----------------------------------------------|
+| g             | go to numbered URL                            |
+| C-u g         | visit multiple URLs                           |
+| e             | extract one or more attachment                |
+| o             | open attachment                               |
+| a             | execute some custome action on the message    |
+| A             | execute some custom action on attachment      |
+|---------------+-----------------------------------------------|
+| misc          |                                               |
+|---------------+-----------------------------------------------|
+| ;             | switch context                                |
+| c             | copy address at point                         |
+| h             | toggle html/text                              |
+| w             | toggle line wrapping                          |
+| #             | toggle show/hide cited parts                  |
+| v             | show details about cryptographic signiture    |
+| .             | show the raw message view. 'q' takes you back |
+| C-+, C--      | increase/decrease number of headers shown     |
+| H             | get help                                      |
+| C-S-u/C-c C-u | update mail & reindex                         |
+| q             | leave the message view                        |
+* RSS settings
 * Useful tools
 ** Which-key
 #+begin_src emacs-lisp
@@ -4236,8 +4651,8 @@ npm install
 (use-package crux
   :ensure t
   :bind (("C-a" . crux-move-beginning-of-line)
-         ("C-c ^" . crux-top-join-line)
-         ("C-x ," . crux-find-user-init-file)
+         ("C-x 4 t" . crux-transpose-windows)
+         ("C-x K" . crux-kill-other-buffers)
          ("C-k" . crux-smart-kill-line))
   :config
   (crux-with-region-or-buffer indent-region)
@@ -4465,6 +4880,7 @@ This is an alternative to smartparens.
 
 (use-package flyspell
   :ensure nil
+  :defer t
   :hook (((text-mode markdown-mode). (lambda () (flyspell-mode 1)))
          ((prog-mode python-mode) . (lambda () (flyspell-prog-mode)))
          )
