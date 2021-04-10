@@ -1,6 +1,7 @@
 #+TITLE: Emacs configuration
 #+author: Randolph Huang
 #+startup: overview
+#+hugo_base_dir: /Users/randolph/iCloud/Blog
 
 * Emacs Plus
 You can try emacs-plus if you use MacOS.
@@ -163,9 +164,9 @@ This variable tells Emacs to prefer the =.el= file if it’s newer, even if ther
 * Network settings
 ** proxy settings
 #+begin_src emacs-lisp
-;; (setq url-proxy-services
-;;       '(("http"  . "127.0.0.1:6152")
-;;         ("https" . "127.0.0.1:6152")))
+(setq url-proxy-services
+      '(("http"  . "127.0.0.1:6152")
+        ("https" . "127.0.0.1:6152")))
 #+end_src
 ** with proxy
 To make codes using proxy.
@@ -276,9 +277,26 @@ The =auth-source= library looks for passwords in a set of sources, by default it
 ~/.netrc
 #+end_example
 
+App like =Gnus=, =MU4E= will read password information from this file.
+
+-------
+
 You can also to add additional sources such as MacOS keychain("internet" or "generic") to the =auth-source= list.
 
-App like =Gnus=, =MU4E= will read password information from this file.
+1. Firstly need to add password to keychain via command line:
+#+begin_src shell -n :file-name: temp.sh
+security add-internet-password -a huangxj73@midea.com -l smtp.midea.com -P 465 -r smtp -s smtp.midea.com -w "my-password" -U
+#+end_src
+
+2. Then set =auth-source=:
+#+begin_src emacs-lisp -n
+;; (when sys/macp
+;;   ;; (add-to-list 'auth-sources 'macos-keychain-internet)
+;;   ;; (add-to-list 'auth-sources 'macos-keychain-generic)
+;;   (setq auth-sources (quote (macos-keychain-internet macos-keychain-generic)))
+;;   )
+#+end_src
+
 ** Create a recipient for encryption
 #+begin_src shell -n :file-name: temp.sh
 brew install gpg
@@ -305,10 +323,24 @@ chmod 700 ~/.gnupg
 #+begin_example
 machine yoursitename login youremailaccount password yourpassword
 #+end_example
+** Edit =gpg-agent.conf= file
+Edit =gpg-agent.conf= file located in =~/.gnupg/gpg-agent.conf=:
+#+begin_example
+use-standard-socket
+enable-ssh-support
+default-cache-ttl 34560000
+max-cache-ttl 34560000
+pinentry-program /usr/local/bin/pinentry-mac
+#+end_example
 ** Fix Easy-PG
 Emacs did not bring up the interface to enter the passphrase for my secret key. See [[https://colinxy.github.io/software-installation/2016/09/24/emacs25-easypg-issue.html][Fix Easy-PG issure in Emacs 25.1]] for details. Even in 27.2, this problem still exists.
 #+begin_src emacs-lisp -n
-(setq epa-pinentry-mode 'loopback)
+;; (setq epa-pinentry-mode 'loopback)
+#+end_src
+
+An alternative solution for macOS is to install =pinentry-mac=:
+#+begin_src shell -n :file-name: temp.sh
+brew install pinentry-mac
 #+end_src
 * UI settings
 ** Basic UI settings
@@ -594,6 +626,7 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-one t)
   ;; (load-theme 'doom-one-light t)
   ;; (load-theme 'doom-nord t)
+  ;; (load-theme 'doom-nord-light t)
   ;; (load-theme 'doom-vibrant t)
   (load-theme 'doom-palenight t)
   ;; (load-theme 'doom-zenburn t)
@@ -602,11 +635,38 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-dracula t)
   ;; (load-theme 'doom-molokai t)
   ;; (load-theme 'doom-monokai-pro t)
+  ;; (load-theme 'doom-acario-light t)
+  ;; (load-theme 'doom-opera-light t)
+  ;; (load-theme 'doom-tomorrow-day t)
   (defun switch-theme ()
     "An interactive funtion to switch themes."
     (interactive)
     (disable-theme (intern (car (mapcar #'symbol-name custom-enabled-themes))))
     (call-interactively #'load-theme)))
+
+;; automatically change theme based on time and location
+;; (use-package theme-changer
+;;   :ensure t
+;;   :config
+;;   ;; set latitude and longitude
+;;   ;; (setq calendar-location-name "Dallas, TX")
+;;   (setq calendar-latitude 30.82)
+;;   (setq calendar-longitude 120.51)
+;;   ;; set day and night themes
+;;   (change-theme 'doom-one-light 'doom-palenight)
+;;   )
+
+;; following is another snippet from:
+;; https://cyberchris.xyz/blog/2019/12/27/doom-emacs-custom-script
+;; (setq hour
+;;       (string-to-number
+;;        (substring (current-time-string) 11 13))) ;; gets the hour
+;; (if (member hour (number-sequence 6 16)) ;; if between 06:00-16:59
+;;     (setq now 'doom-solarized-light) ;; then light theme
+;;   (setq now 'doom-dracula)) ;; else dark theme from 5pm
+;; (if (equal now doom-theme) ;; only switches to the correct theme if needed
+;;     nil
+;;   (setq doom-theme now))
 #+end_src
 ** Optimize editing experience
 Remove useless whitespace before saving.
@@ -1401,7 +1461,6 @@ Other related settings makes ivy more beautiful.
 | L                          | Load an Emacs Lisp file into Emacs                            |
 |                            |                                                               |
 
-
 ** Basic settings
 #+begin_src emacs-lisp
 (defun xah-open-in-external-app (&optional @fname)
@@ -1689,7 +1748,7 @@ Version 2019-11-04"
   (org-level-9 ((t (:height 1.3 :weight bold))))
   :custom
   (org-directory "~/org")
-  (org-default-notes-file (expand-file-name "notes.org" org-directory))
+  (org-default-notes-file (expand-file-name "all-posts.org" org-directory))
   (org-modules '(ol-bibtex ol-gnus ol-info ol-eww org-habit org-protocol))
   ;; prettify
   (org-ellipsis " ▾")
@@ -1801,6 +1860,12 @@ Another choice is =org-superstar= which is a descendant of =org-bullets=.
                       (org-superstar-mode 1)))
   )
 #+end_src
+** Prettify table
+Download =org-pretty-table= from [[https://github.com/Fuco1/org-pretty-table][org-pretty-table]] and put it to =~/.emacs.d/lisp/=
+#+begin_src emacs-lisp -n
+(require 'org-pretty-table)
+(add-hook 'org-mode-hook (lambda () (org-pretty-table-mode)))
+#+end_src
 ** Enhance refile to a new file
 Refile to a new org file. Refer to:
 https://stackoverflow.com/questions/33885244/emacs-org-mode-how-can-i-refile-a-subtree-to-a-new-file
@@ -1850,7 +1915,8 @@ otherwise use the subtree title."
   (org-agenda-files
         '("~/org/tasks.org"
           "~/org/habits.org"
-          "~/org/birthdays.org"))
+          "~/org/mail.org"
+          "~/org/personal.org"))
   ;; (org-agenda-files (list (expand-file-name "tasks.org" org-directory)))
   (org-agenda-diary-file (expand-file-name "diary.org" org-directory))
   (org-agenda-insert-diary-extract-time t)
@@ -1974,6 +2040,7 @@ otherwise use the subtree title."
                         ("mermaid"      . mermaid)
                         ("ocaml"        . tuareg)
                         ("shell"        . sh)
+                        ("ditaa"        . artist)
                         ("html"         . browser)
                         ("mysql"        . sql)))
   (org-babel-load-languages '(
@@ -1991,6 +2058,7 @@ otherwise use the subtree title."
                               (shell           . t)
                               (browser         . t)
                               (sql             . t)
+                              (ditaa           . t)
                               (jupyter         . t)
                               ))
   )
@@ -2166,7 +2234,14 @@ otherwise use the subtree title."
                            ("YouTube"       . "https://youtube.com/watch?v=")
                            ("Zhihu"         . "https://zhihu.com/question/"))))
 #+end_src
+
+Link abbreviation usage:
+#+begin_example
+Take Baidu "test" for example, the link should be like:
+[[Baidu:test][baidu test]]
+#+end_example
 ** Tempo template settings
+For org-mode, use =org-tempo= instead of =yasnippet=.
 #+begin_src emacs-lisp
 (use-package org-tempo
   :after org
@@ -2187,6 +2262,41 @@ otherwise use the subtree title."
           ("jp"  . "src jupyter-python -n :session py :results output :file-name temp.py")
           ("ein" . "src ein-python -n :session localhost :results output :file-name temp.py")
           ("py" . "src python -n :results output :file-name temp.py")))
+
+  ;; complex template definition
+  (tempo-define-template "headline-property"
+                         '(":PROPERTIES:" n p n ":END:" >)
+                         "<P"
+                         "Insert a property template" 'org-tempo-tags)
+  ;; define ditaa template filename will automatically generated
+  (tempo-define-template "org-src-ditaa"
+                         '((concat "#+begin_src ditaa :file " (buffer-file-name) ".assets/" (format-time-string "%Y%m%d_%H%M%S") ".png") n p n "#+end_src" >)
+                         "<dt"
+                         "Insert a src ditaa template" 'org-tempo-tags)
+  (tempo-define-template "org-startup"
+                         '("#+startup: overview" p)
+                         "<st"
+                         "Insert a startup property" 'org-tempo-tags)
+  (tempo-define-template "org-title"
+                         '("#+title: " p)
+                         "<ti"
+                         "Insert an org title" 'org-tempo-tags)
+  (tempo-define-template "org-author"
+                         '("#+author: " p)
+                         "<au"
+                         "Insert an org author" 'org-tempo-tags)
+  (tempo-define-template "org-hugo-base-dir"
+                         '("#+hugo_base_dir: /Users/randolph/iCloud/Blog" p)
+                         "<hb"
+                         "Insert hugo base directory" 'org-tempo-tags)
+  (tempo-define-template "org-hugo-export-filename"
+                         '(":PROPERTIES:" n ":EXPORT_FILE_NAME: " p n ":END:" >)
+                         "<he"
+                         "Insert hugo export filename" 'org-tempo-tags)
+  (tempo-define-template "org-tangle-no"
+                         '(":PROPERTIES:" n ":header-args:    :tangle no" n ":END:" >)
+                         "<tn"
+                         "Insert tangle no property" 'org-tempo-tags)
   )
 #+end_src
 ** Org clock
@@ -2446,6 +2556,114 @@ See `org-capture-templates' for more information."
   (setq mermaid-tmp-dir "temp")
   )
 #+end_src
+** Support ditaa
+Use =artist-mode= to draw asciiized picture.
+*** ditaa jar settings
+#+begin_src emacs-lisp -n
+(setq org-ditaa-jar-path "/usr/local/Cellar/ditaa/0.11.0_1/libexec/ditaa-0.11.0-standalone.jar")
+#+end_src
+
+*** Ditaa example:
+**** GRO Modules:
+#+begin_src ditaa :file images/temp.png
+                                     GRO Architecture
+-----------------------------------------------------------------------------------------------------
+                                       Top Modules
+ /----------\
+ |    GUI   |
+ | cRED     |
+ +----------+
+---------=----------------------------------------------------------------------------------=--------
+ +----------+ +-----------\/-----------------\/--------+
+ | UCI      | |LUCI-SHARED|| SDK-LIBC-SCRIPT || DNSMASQ|
+ | c516     | | cBLU      || cBLU            ||   cBLU |
+ +----------+ +-----------/\-----------------/\--------+
+-----------------------------------------------------------------------------------------------------
+                                       Lower Modules
+ +-----------------------------------------------------------------------------------------------+
+ |                                         netfilter                                             |
+ |  +------------------+                                                                         |
+ |  | Access Control   |                                                                         |
+ |  |   c277           |                                                                         |
+ |  +------------------+                                                                         |
+ |                                           cA7A                                                |
+ +-----------------------------------------------------------------------------------------------+
+ +-----------+  +--------------+
+ |SDK-LIBC   |  | Busybox      |
+ |cBLU       |  | Driver  cPNK |
+ +-----------+  +--------------+
+#+end_src
+
+#+RESULTS:
+[[file:images/temp.png]]
+
+**** Feature Modules
+#+begin_src ditaa :file images/temp1.png
+  +-------------+
+  |   UCI       |
+  |   c516      |
+  +------+------+
+         | config get
+         v                   /----------------------------------------------------\
+  +-------------+            | - Translate configratuion items from UCI to uci    |
+  | LUCI-SHARED |............| - Provide luci script to bring up feature          |
+  |    cBLU     |            | - Provide Ada scripts                              |
+  +------+------+            \----------------------------------------------------/
+         |
+         v
+ +----------------+
+ | Openwrt config |
+ | cGRE           |
+ +-------+--------+
+         |
+         v
++-------------------+         +------------+
+|  SDK-LIBC-SCRIPT  +-------->|  DNSMASQ   |
+|     cBLU          |         |   cBLU     |
++---------+---------+         +------+-----+
+          |                          | (Ada configuration)
+          |      /-------------------+
+          |      |
+          v      v
++-------------------+
+|     SDK-LIBC      |
+|       cBLU        |
++-------------------+
+#+end_src
+
+#+RESULTS:
+[[file:images/temp1.png]]
+
+#+begin_src ditaa :file images/temp2.png
+    +-----------+        +---------+
+    |    PLC    |        |         |
+    |  Network  +<------>+   PLC   +<---=---------+
+    |    cRED   |        |  c707   |              |
+    +-----------+        +----+----+              |
+                              ^                   |
+                              |                   |
+                              |  +----------------|-----------------+
+                              |  |                |                 |
+                              v  v                v                 v
+      +----------+       +----+--+--+      +-------+---+      +-----+-----+       Windows clients
+      |          |       |          |      |           |      |           |      +----+      +----+
+      | Database +<----->+  Shared  +<---->+ Executive +<-=-->+ Operator  +<---->|cYEL| . . .|cYEL|
+      |   c707   |       |  Memory  |      |   c707    |      | Server    |      |    |      |    |
+      +--+----+--+       |{d} cGRE  |      +------+----+      |   c707    |      +----+      +----+
+         ^    ^          +----------+             ^           +-------+---+
+         |    |                                   |
+         |    +--------=--------------------------+
+         v
++--------+--------+
+|                 |
+| Millwide System |            -------- Data ---------
+| cBLU            |            --=----- Signals ---=--
++-----------------+
+#+end_src
+
+#+RESULTS:
+[[file:images/temp2.png]]
+
 ** Math symbol enhanced via Xah
 #+begin_src emacs-lisp
 ;; Xah Math input mode, to input math symbols via S-SPC
@@ -2574,6 +2792,7 @@ This is included in contrib package.
 (use-package org-mac-link
   :ensure nil
   :after org
+  :when (eq system-type 'darwin)
   :custom
   (org-mac-grab-Acrobat-app-p nil "Disable grabbing from Adobe Acrobat")
   (org-mac-grab-devonthink-app-p nil "Disable grabbinb from DevonThink")
@@ -2594,7 +2813,7 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
 (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-dont-ask
                                               'run-at-end 'only-in-org-mode)))
 #+end_src
-** Others
+** Others org mode settings
 #+begin_src emacs-lisp
 (use-package org-id
   :ensure nil
@@ -2617,6 +2836,15 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
   (org-table-export-default-format "orgtbl-to-csv")
   (org-table-formula-constants '(("PI" . "3.14159265358979323846264"))))
 #+end_src
+** org mode tips
+*** Some useful key-bindings
+| key       | description                    |
+|-----------+--------------------------------|
+| C-c C-x p | insert properties for headline |
+| C-c C-t   | change TODO state              |
+| C-c C-d   | set deadline date              |
+| C-c C-s   | set schedule date              |
+
 * Markdown settings
 #+begin_src emacs-lisp
 (use-package markdown-mode
@@ -2874,8 +3102,8 @@ ARGS are passed to the PROGRAM."
               ("C-c C-y" . term-paste)
               ;; Don't capture my keys!
               ("M-:" . nil)
-              ("M-x" . nil)
-              ("C-h" . nil)
+              ;; ("M-x" . nil)
+              ;; ("C-h" . nil)
               ("C-u" . nil))
   :config
   (when (eq system-type 'darwin)
@@ -2885,17 +3113,23 @@ ARGS are passed to the PROGRAM."
     "The common initialization for term."
     (setq-local scroll-margin 0)
     (setq-local truncate-lines t)
-    (setq-local global-hl-line-mode nil)
-    (when (bound-and-true-p evil-mode)
-      (setq-local evil-insert-state-cursor 'box)
-      (evil-insert-state)))
+    ;; (setq-local global-hl-line-mode nil)
+    ;; (when (bound-and-true-p evil-mode)
+    ;;   (setq-local evil-insert-state-cursor 'box)
+    ;;   (evil-insert-state))
+    )
   :custom
   (explicit-shell-file-name "/bin/zsh") ; set to bash if you prefer bash
   (term-input-ignoredups t)
   (term-completion-autolist t)
   (term-scroll-to-bottom-on-output 'all)
-  (term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
+  ;; (term-prompt-regexp "^[^#$%>\n]*[#$%>] *")
+  )
 #+end_src
+
+#+begin_quote
+If you encounter some bad codes such as "]133;B" in front of =PS1 prompt=, you can try =rm ~/.iterm2_shell_integration.zsh=
+#+end_quote
 ** Term color
 #+begin_src emacs-lisp -n
 (use-package eterm-256color
@@ -3756,7 +3990,7 @@ export PATH=~/go/bin/:$PATH
     '(((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/midea_cs"))))
 #+end_src
 *** Use ejc-sql as a MySQL client
-:properties:
+:PROPERTIES:
 :header-args:    :tangle no
 :END:
 
@@ -3917,6 +4151,12 @@ npm i -g vscode-html-languageserver-bin
   (separedit-continue-fill-column t)
   (separedit-buffer-creation-hook #'auto-fill-mode))
 #+end_src
+** Ediff settings
+#+begin_src emacs-lisp -n
+(setq ediff-diff-options "-w"
+      ediff-split-window-function 'split-window-horizontally
+      ediff-window-setup-function 'ediff-setup-windows-plain)
+#+end_src
 * EAF settings
 EAF: Emacs Application Framework.
 ** download EAF
@@ -3996,7 +4236,7 @@ npm install
 | q   | quit                               |
 
 * Gnus settings
-:properties:
+:PROPERTIES:
 :header-args:    :tangle no
 :END:
 
@@ -4016,21 +4256,44 @@ npm install
   (gnus-use-cross-reference nil)
   (gnus-inhibit-startup-message nil)
   (gnus-home-directory (no-littering-expand-var-file-name "gnus/"))
-  (gnus-select-method '(nnimap "126"
-                               (nnimap-address "imap.126.com")
-                               (nnimap-server-port "imaps")
-                               (nnimap-stream ssl)
-                               (nnimap-expunge 'on-exit)
-                               (nnimap-streaming t)
-                               ;; (nnimap-fetch-partial-articles "text/")
-                               (nnimap-record-commands t)
-                               ;; (nnmail-expiry-target "nnimap+GMail:[Gmail]/Trash")
-                               (nnir-search-engine imap)
-                               ;; Client-Side settings
-                               ;; (nnimap-inbox "INBOX")
-                               ))
-  (gnus-secondary-select-methods '((nntp "gmane" (nntp-address "news.gmane.io"))
-                                   (nntp "nntp.lore.kernel.org"))))
+  ;; (gnus-select-method '(nnimap "imap.126.com"
+  ;;                              (nnimap-address "imap.126.com")
+  ;;                              (nnimap-server-port 993)
+  ;;                              (nnimap-stream ssl)
+  ;;                              (nnimap-authenticator login)
+  ;;                              (nnimap-expunge 'on-exit)
+  ;;                              (nnimap-streaming t)
+  ;;                              (nnimap-fetch-partial-articles "text/")
+  ;;                              (nnimap-record-commands t)
+  ;;                              ;; (nnmail-expiry-target "nnimap+126:126/Trash")
+  ;;                              (nnir-search-engine imap)
+  ;;                              Client-Side settings
+  ;;                              (nnimap-inbox "INBOX")
+  ;;                              ))
+  :config
+  (setq gnus-select-method '(nnnil nil))
+  (setq gnus-secondary-select-methods
+        '(
+          ;; (nnimap "Personal"
+          ;;         (nnimap-address "imap.126.com")
+          ;;         (nnimap-server-port "imaps")
+          ;;         (nnimap-stream ssl)
+          ;;         (nnir-search-engine imap)
+          ;;         (nnmail-expiry-target "nnimap+Personal:&XfJSIJZk-")
+          ;;         (nnmail-expiry-wait 'immediate))
+          (nnimap "Work"
+                  (nnimap-address "imap.midea.com")
+                  (nnimap-server-port "imaps")
+                  (nnimap-stream ssl)
+                  (nnir-search-engine imap)
+                  (nnmail-expiry-target "nnimap+Work:[Midea]/Trash")
+                  (nnmail-expiry-wait 'immediate))))
+  (setq gnus-thread-sort-functions
+        '(gnus-thread-sort-by-most-recent-date
+          (not gnus-thread-sort-by-number)))
+  ;; (gnus-secondary-select-methods '((nntp "gmane" (nntp-address "news.gmane.io"))
+  ;;                                  (nntp "nntp.lore.kernel.org")))
+  )
 #+end_src
 
 ** Group mode commands for Gnus
@@ -4445,6 +4708,7 @@ mu index
    (:map mu4e-view-mode-map
          ("e" . mu4e-view-save-attachment)))
   :custom
+  (mu4e-mu-binary "/usr/local/bin/mu")
   (mu4e-maildir (expand-file-name "~/Mail"))
   (mu4e-get-mail-command "mbsync -c ~/.emacs.d/mu4e/.mbsyncrc -a")
   (mu4e-view-prefer-html t)
@@ -4460,7 +4724,7 @@ mu index
   (mu4e-confirm-quit nil)
   (mu4e-use-fancy-chars t)
   (mu4e-view-use-gnus t)
-  (gnus-icalendar-org-capture-file "~/org/meetings.org") ; Prerequisite: set it to meetings org fie
+  (gnus-icalendar-org-capture-file "meetings.org") ; Prerequisite: set it to meetings org fie
   (gnus-icalendar-org-capture-headline '("Meetings")) ; Make sure to create Calendar heading first
   :hook
   ((mu4e-view-mode . visual-line-mode)
@@ -4480,7 +4744,6 @@ mu index
                                   (:thread-subject . ,(- (window-body-width) 70)) ;; alternatively, use :subject
                                   (:size . 7))))))
   :config
-  ;; (require 'org-mu4e) ; Load org-mode integration, not so good will use other package.
   (require 'mu4e-icalendar) ; TODO
   (mu4e-icalendar-setup)
   (gnus-icalendar-org-setup)
@@ -4559,12 +4822,83 @@ mu index
                                               ;; ("/midea/Starred"   . ?r)
                                               ;; ("/midea/Drafts"    . ?d)
                                               ))))
+         (make-mu4e-context
+          :name "yahoo"
+          :enter-func (lambda () (mu4e-message "Entering context yahoo"))
+          :leave-func (lambda () (mu4e-message "Leaving context yahoo"))
+          :match-func
+          (lambda (msg)
+            (when msg
+              (string-match "126" (mu4e-message-field msg :maildir))))
+          :vars '((mu4e-sent-folder . "/yahoo/Sent Mail")
+                  (mu4e-drafts-folder . "/yahoo/Drafts")
+                  (mu4e-trash-folder . "/yahoo/Trash")
+                  (mu4e-sent-messages-behavior . sent)
+                  (mu4e-compose-signature . "Best Regards,\nRandolph Huang")
+                  (user-mail-address . "xiaojianghuang@yahoo.com") ; Prerequisite: Set this to your email
+                  (mu4e-compose-format-flowed . t)
+                  (smtpmail-queue-dir . "~/Mail/yahoo/queue/cur")
+                  (message-send-mail-function . smtpmail-send-it)
+                  (smtpmail-smtp-user . "xiaojianghuang@yahoo.com") ; Set to your username
+                  (smtpmail-smtp-server . "smtp.mail.yahoo.com")
+                  (smtpmail-smtp-service . 465)
+                  (smtpmail-stream-type . ssl)
+                  (smtpmail-debug-info . t)
+                  (smtpmail-debug-verbose . t)
+                  (mu4e-maildir-shortcuts . ( ("/yahoo/INBOX"            . ?i)
+                                              ("/yahoo/Sent Mail" . ?s)
+                                              ("/yahoo/Trash"       . ?t)
+                                              ))))
          ))
-  ;; run mu4e background
-  ;; (mu4e t)
-  )
+
+  (require 'mu4e-org)
+  (add-to-list 'org-capture-templates '("e" "Email Workflow"))
+  (add-to-list 'org-capture-templates
+               '("ef" "Follow Up" entry
+                 (file+olp "mail.org" "Follow Up")
+                 "* TODO Follow up email from: %:fromname subject: %:subject\nSCHEDULED:%t\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))\n\n%a\n\n%i"
+                 ;; if you want to capture without prompt, add ":immediate-finish t" at the end of the template.
+                 :immediate-finish t
+                 ))
+  (add-to-list 'org-capture-templates
+               '("er" "Read Later" entry
+                 (file+olp "mail.org" "Read Later")
+                 "* TODO Read with email from: %:fromname subject: %:subject\nSCHEDULED:%t\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))\n\n%a\n\n%i"
+                 :immediate-finish t
+                 ))
+
+  (defun my/capture-mail-follow-up (msg)
+    (interactive)
+    (call-interactively 'org-store-link)
+    (org-capture nil "ef"))
+
+  (defun my/capture-mail-read-later (msg)
+    (interactive)
+    (call-interactively 'org-store-link)
+    (org-capture nil "er"))
+
+  ;; Add custom actions for our capture templates
+  (add-to-list 'mu4e-headers-actions
+               '("follow up" . my/capture-mail-follow-up) t)
+  (add-to-list 'mu4e-view-actions
+               '("follow up" . my/capture-mail-follow-up) t)
+  (add-to-list 'mu4e-headers-actions
+               '("read later" . my/capture-mail-read-later) t)
+  (add-to-list 'mu4e-view-actions
+               '("read later" . my/capture-mail-read-later) t)
+
+  (defun my/store-link-to-mu4e-query ()
+    "Store the mu4e query as a link so you can add this link via C-c C-l"
+    (interactive)
+    (let ((org-mu4e-link-query-in-headers-mode t))
+      (call-interactively 'org-store-link)))
+
+  ;; Start mu4e in the background so that it syncs mail periodically
+  (setq mu4e-context-policy 'pick-first)
+  (mu4e t)
+)
 #+end_src
-** org-mode with mu4e
+** Use org mode to compose email in mu4e
 There are two packages support orgmode when sending emails with mu4e:
 + org-msg
 + org-mime
@@ -4654,9 +4988,69 @@ Following is a search example for keyword "meeting", sender contains "imip", has
 meeting and from:imip flag:attach date:2021/03
 #+end_example
 *** Compose
-Use =M-x mu4e-compose-new= command to compose new email everywhere.
+Use =M-x mu4e-compose-new= command to compose new email
+*** Fix "mu4e-error-handler: Error 1: cannot open database" problem
+This is because mu has already been running. Need to stop mu first.
+#+begin_src shell -n :file-name: temp.sh
+# 1. kill mu
+pkill -2 -u $UID mu
 
-* TODO RSS settings
+# 2. reinit
+mu init --maildir=~/Mail/ --my-address=xiaojianghuang@126.com --my-address=huangxj73@midea.com
+
+# 3. reindex
+mu index
+#+end_src
+
+* RSS settings
+** Newsticker
+#+begin_src emacs-lisp -n
+(use-package newsticker
+  :ensure nil
+  :bind ("\e\e n" . newsticker-treeview)
+  :config
+  (define-advice newsticker--cache-read (:around (func &rest args))
+    "Read cache data without prompt."
+    (cl-letf* (((symbol-function 'y-or-n-p) (lambda (_) t)))
+      (apply func args)))
+  :custom-face
+  (newsticker-treeview-old-face ((nil (:inherit 'newsticker-treeview-face :foreground "#7c7c75"))))
+  :custom
+  ;; Keep obsolete items for a month
+  (newsticker-keep-obsolete-items t)
+  (newsticker-obsolete-item-max-age (* 30 86400))
+  ;; Sane behavior
+  (newsticker-automatically-mark-items-as-old nil)
+  (newsticker-automatically-mark-visited-items-as-old t)
+  ;; No logos
+  (newsticker-download-logos nil)
+  (newsticker-enable-logo-manipulations nil)
+  ;; Emacs async sucks
+  (newsticker-retrieval-method 'extern)
+  ;; Improve the default display
+  (newsticker-treeview-listwindow-height 20)
+  (newsticker-treeview-date-format "%F %a, %H:%M  ")
+  (newsticker-url-list-defaults nil)
+  (newsticker-url-list '(
+                         ("Planet Emacslife" "https://planet.emacslife.com/atom.xml")
+                         ("喷嚏网" "http://www.dapenti.com/blog/rss2.asp?name=xilei")
+                         ("少数派" "https://sspai.com/feed")
+                         ("小众软件" "https://feeds.appinn.com/appinns/")
+                         ("Mac志" "https://www.isofts.org/feed/")
+                         ("Mac玩法" "http://www.waerfa.com/feed")
+                         ("Mac限免" "http://free.apprcn.com/category/mac/feed/")
+                         ("产品100" "http://www.chanpin100.com/feed")
+                         ("Ideas" "https://www.wired.com/feed/category/ideas/latest/rss")
+                         ("交互体验" "http://www.woshipm.com/category/ucd/feed")
+                         ("产品运营" "http://www.woshipm.com/category/operate/feed")
+                         ("产品经理" "http://www.woshipm.com/category/pmd/feed")
+                         ("艾瑞报告" "http://www.iresearch.cn/common/rss/reports.xml")
+                         ("LWN (Linux Weekly News)" "https://lwn.net/headlines/rss")
+                         )))
+#+end_src
+** TODO Elfeed
+* TODO org protocol & org-capture-extension
+* TODO org-roam
 * Useful tools
 ** Which-key
 #+begin_src emacs-lisp
@@ -5033,6 +5427,7 @@ This is an alternative to smartparens.
   ;;        ([(tab)] . smarter-yas-expand-next-field)))
   :config
   (yas-reload-all)
+  (setq yas-prompt-functions '(yas-x-prompt yas-dropdown-prompt))
   (defun smarter-yas-expand-next-field ()
     "Try to `yas-expand' then `yas-next-field' at current cursor position."
     (interactive)
