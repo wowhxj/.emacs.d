@@ -3,6 +3,8 @@
 #+startup: overview
 #+hugo_base_dir: /Users/randolph/iCloud/Blog
 
+
+
 * Emacs Plus
 You can try emacs-plus if you use MacOS.
 #+begin_src shell :file-name: temp.sh
@@ -14,13 +16,22 @@ ln -s /usr/local/opt/emacs-plus@27/Emacs.app /Applications
 ** Setup ELPA, MELPA and Org repo
 #+begin_src emacs-lisp
 (require 'package)
+;; (setq package-archives
+;;       '(("gnu"       . "https://mirrors.cloud.tencent.com/elpa/gnu/")
+;;         ("melpa"     . "https://mirrors.cloud.tencent.com/elpa/melpa/")
+;;         ;; ("melpa-stable" . "https://mirrors.cloud.tencent.com/elpa/melpa-stable/")
+;;         ("marmalade" . "https://mirrors.cloud.tencent.com/elpa/marmalade/")
+;;         ("org"       . "http://orgmode.org/elpa/")
+;;         ("nongnu"    . "https://mirrors.cloud.tencent.com/elpa/nongnu/")))
+
 (setq package-archives
-      '(("gnu"    . "http://elpa.emacs-china.org/gnu/")
-        ("melpa"  . "http://elpa.emacs-china.org/melpa/")
-	    ("melpa-stable" . "http://elpa.emacs-china.org/melpa-stable/")
-	    ("marmalade" . "http://elpa.emacs-china.org/marmalade/")
+      '(("melpa"  . "https://melpa.org/packages/")
+        ;; ("melpa-stable" . "http://melpa-stable.milkbox.net/packages/")
+        ;; ("marmalade" . "http://marmalade-repo.org/packages/")
+        ("gnu"    . "https://elpa.gnu.org/packages/")
         ("org"         . "http://orgmode.org/elpa/")
-        ))
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+
 (if (version< emacs-version "27")
   (package-initialize))
 #+end_src
@@ -531,7 +542,7 @@ Don't show line numbers always. Enable when nessecery.
                 conf-mode-hook))
   (add-hook mode (lambda () (setq-local display-line-numbers-mode 1))))
 
-;; when C-' to edit src code, show line numbers
+;; when C-c ' to edit src code, show line numbers
 (add-hook 'org-src-mode-hook 'display-line-numbers-mode)
 ;; when in org file, don't show line numbers
 (dolist (mode '(org-mode-hook))
@@ -752,7 +763,7 @@ Auto backup and auto save.
 (setq-default auto-save-timeout 15) ; 15秒无动作,自动保存
 (setq-default auto-save-interval 100) ; 100个字符间隔, 自动保存
 #+end_src
-* Coding system settings
+* Encoding system settings
 Use utf-8 everywhere.
 #+begin_src emacs-lisp
 ;; from purcell:
@@ -788,7 +799,7 @@ Use utf-8 everywhere.
 ;;   (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
 #+end_src
 
-If we encounter some coding system issues, refer to following tips:
+If we encounter some coding system issues in a file, refer to following tips:
 #+begin_quote
 1. =M-x describe-coding-system= to see current coding system.
 2. =M-x revert-buffer-with-coding-system= to set the correct coding system.
@@ -1322,6 +1333,8 @@ Use Ivy/counsel.
   ;; Better sorting and filtering
   (use-package prescient
     :ensure t
+    :defer 7
+    :after counsel
     :commands prescient-persist-mode
     :init (prescient-persist-mode 1))
 
@@ -1861,7 +1874,7 @@ Another choice is =org-superstar= which is a descendant of =org-bullets=.
   )
 #+end_src
 ** Prettify table
-Download =org-pretty-table= from [[https://github.com/Fuco1/org-pretty-table][org-pretty-table]] and put it to =~/.emacs.d/lisp/=
+Download =org-pretty-table.el= from [[https://github.com/Fuco1/org-pretty-table][org-pretty-table]] and put it to =~/.emacs.d/lisp/=
 #+begin_src emacs-lisp -n
 (require 'org-pretty-table)
 (add-hook 'org-mode-hook (lambda () (org-pretty-table-mode)))
@@ -2259,7 +2272,7 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
           ("el" . "src emacs-lisp -n")
           ("sh" . "src shell -n :file-name: temp.sh")
           ("json" . "src json -n")
-          ("jp"  . "src jupyter-python -n :session py :results output :file-name temp.py")
+          ("jp"  . "src jupyter-python -n :session py :file-name temp.py")
           ("ein" . "src ein-python -n :session localhost :results output :file-name temp.py")
           ("py" . "src python -n :results output :file-name temp.py")))
 
@@ -2297,6 +2310,10 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
                          '(":PROPERTIES:" n ":header-args:    :tangle no" n ":END:" >)
                          "<tn"
                          "Insert tangle no property" 'org-tempo-tags)
+  (tempo-define-template "org-reveal-split"
+                         '("#+REVEAL: split" n p)
+                         "<rs"
+                         "Insert REVEAL split mark" 'org-tempo-tags)
   )
 #+end_src
 ** Org clock
@@ -2516,9 +2533,12 @@ See `org-capture-templates' for more information."
   )
 #+end_src
 ** Enhance image paste from clipboard
+Paste image from clipboard via pngpaste. Need to `brew install pngpaste' first:
+#+begin_src shell -n :file-name: temp.sh
+brew install pngpaste
+#+end_src
+
 #+begin_src emacs-lisp
-;; paste image from clipboard via pngpaste.
-;; need to `brew install pngpaste' first
 (defun my-org-insert-clipboard-image ()
   "create a time stamped unique-named file from the clipboard in the sub-directory (%filename.assets) as the org-buffer and insert a link to this file."
   (interactive)
@@ -2679,8 +2699,9 @@ Use =artist-mode= to draw asciiized picture.
 (setq org-mobile-inbox-for-pull "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/")
 #+end_src
 ** Org Presentation
-Do presentation in Emacs. We have several choices.
+Do presentation with Emacs. We have several choices.
 *** Org Reveal
+Export org mode to HTML presentation slides.
 **** Reveal basic settings
 #+begin_src emacs-lisp
 (use-package ox-reveal
@@ -2695,7 +2716,7 @@ Do presentation in Emacs. We have several choices.
   (setq org-reveal-mathjax t)
   )
 #+end_src
-**** force split
+**** Force split
 If one heading has too many things to fit into one slide, you can split the contents into multiple vertical slides manually, by inserting:
 #+begin_example
 #+REVEAL: split
@@ -2752,6 +2773,7 @@ I like org-tree-slide more. Abandon this package.
 #+end_src
 
 *** Org-tree-slide
+Do presentation with org mode inside Emacs program.
 #+begin_src emacs-lisp -n
 (use-package org-tree-slide
   :ensure t
@@ -2838,12 +2860,12 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
 #+end_src
 ** org mode tips
 *** Some useful key-bindings
-| key       | description                    |
-|-----------+--------------------------------|
-| C-c C-x p | insert properties for headline |
-| C-c C-t   | change TODO state              |
-| C-c C-d   | set deadline date              |
-| C-c C-s   | set schedule date              |
+| key       | description                                                         |
+|-----------+---------------------------------------------------------------------|
+| C-c C-x p | insert properties for headline (we have already set <P in org-tempo |
+| C-c C-t   | change TODO state                                                   |
+| C-c C-d   | set deadline date                                                   |
+| C-c C-s   | set schedule date                                                   |
 
 * Markdown settings
 #+begin_src emacs-lisp
@@ -3118,6 +3140,15 @@ ARGS are passed to the PROGRAM."
     ;;   (setq-local evil-insert-state-cursor 'box)
     ;;   (evil-insert-state))
     )
+
+  (defun zsh ()
+    "Open term with zsh"
+    (interactive)
+    (set-buffer (make-term "terminal" explicit-shell-file-name))
+    (term-mode)
+    (term-char-mode)
+    (switch-to-buffer "*terminal*"))
+
   :custom
   (explicit-shell-file-name "/bin/zsh") ; set to bash if you prefer bash
   (term-input-ignoredups t)
@@ -3864,6 +3895,7 @@ This Server supports automatic install (need has npm installed as dependency). I
 ;;           (setq lsp-pyright-python-executable-cmd "/usr/local/opt/python/bin/python3")))
 #+end_src
 ** EIN settings
+For jupyter-notebook.
 #+begin_src emacs-lisp
 (use-package ein
   :ensure t
@@ -3878,11 +3910,11 @@ This Server supports automatic install (need has npm installed as dependency). I
   )
 #+end_src
 ** Jupyter settings
-=Emacs Jupyter= is another choice similar as =EIN= while the experience is better in my opinion.
+=Emacs Jupyter= is another choice similar as =EIN= while the experience is better inside org-mode.
 #+begin_src emacs-lisp
 (use-package jupyter
   :ensure t
-  :defer 10
+  ;; :defer 12
   :after org
   ;; :bind
   ;; (:map jupyter-repl-mode-map
@@ -4066,6 +4098,10 @@ npm i -g vscode-html-languageserver-bin
   :mode "\\.json\\'")
 #+end_src
 ** Treemacs
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
+
 *** treemacs basic settings
 #+begin_src emacs-lisp
 (use-package treemacs
@@ -4193,8 +4229,9 @@ npm install
 ** EAF settings
 #+begin_src emacs-lisp
 (use-package eaf
-  :ensure t
+  ;; :ensure t
   ;; :quelpa (eaf :fetcher github :repo "manateelazycat/emacs-application-framework")
+  :load-path "~/.emacs.d/quelpa/build/eaf"
   :init
   (use-package epc :defer t :ensure t)
   (use-package ctable :defer t :ensure t)
@@ -4673,9 +4710,9 @@ Channel gmail-starred
 
 #+begin_quote
 If in MacOS:
-1. change =gpg2= if you brew install =gpg=
+1. change =gpg2= to =gpg= if you brew install =gpg=
 2. run =gpg -c ./.mbsyncpass-<EMAIL_HERE>= to encrypt your password
-3. change the certificate file location to: =/usr/local/etc/openssl@1.1/cert.pem=
+3. change the certificate file location to: =/etc/ssl/cert.pem= or =/usr/local/etc/openssl@1.1/cert.pem=
 4. set SSLVersions bases on following command result:
    =openssl s_client -connect imap.gmail.com:993 -showcerts | grep Protocol=
 #+end_quote
@@ -4690,6 +4727,7 @@ mu index
 #+begin_src emacs-lisp -n
 (use-package mu4e
   :ensure nil
+  :load-path "/usr/local/share/emacs/site-lisp/mu/mu4e"
   :commands (mu4e make-mu4e-context)
   :init
   (use-package mu4e-alert
@@ -5258,7 +5296,8 @@ This is an alternative to smartparens.
   (global-undo-tree-mode)
   )
 #+end_src
-** Beacon mode: highlight the current cursor when scrolling
+** Beacon mode
+Highlight the current cursor when scrolling.
 #+begin_src emacs-lisp
 (use-package beacon
   :ensure t
@@ -5498,8 +5537,4 @@ Helpful adds a lot of very helpful (get it?) information to Emacs’ describe- c
 ;; ESC-ESC-b to open eaf browser
 (global-set-key (kbd "\e\eb")
                 (lambda () (interactive) (eaf-open-browser-with-history)))
-
-;; command-w to delete-window
-(global-set-key (kbd "s-w")
-                (lambda () (interactive) (delete-window)))
 #+end_src
