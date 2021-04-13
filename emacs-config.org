@@ -9,7 +9,7 @@
 You can try emacs-plus if you use MacOS.
 #+begin_src shell :file-name: temp.sh
 brew tap d12frosted/emacs-plus
-brew install emacs-plus
+brew install emacs-plus --with-debug --with-mailutils --with-xwidgets --with-nobu417-big-sur-icon
 ln -s /usr/local/opt/emacs-plus@27/Emacs.app /Applications
 #+end_src
 * Package Management
@@ -621,6 +621,13 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'solarized-dark t)
   )
 
+(use-package color-theme-sanityinc-solarized
+  :ensure t
+  :config
+  (color-theme-sanityinc-solarized-dark)
+  ;; (color-theme-sanityinc-solarized-light)
+  )
+
 (use-package doom-themes
   :ensure t
   :custom-face
@@ -639,7 +646,7 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-nord t)
   ;; (load-theme 'doom-nord-light t)
   ;; (load-theme 'doom-vibrant t)
-  (load-theme 'doom-palenight t)
+  ;; (load-theme 'doom-palenight t)
   ;; (load-theme 'doom-zenburn t)
   ;; (load-theme 'doom-spacegrey t)
   ;; (load-theme 'doom-gruvbox t)
@@ -828,7 +835,9 @@ Run server mode as possible.
   :defer 1
   :config
   (unless (server-running-p)
-    (server-start)))
+    (server-start))
+  )
+;; (setq server-socket-dir "~/.emacs.d/server")
 #+end_src
 * Window moving
 #+begin_src emacs-lisp
@@ -2563,6 +2572,7 @@ brew install pngpaste
 #+end_src
 
 ** Mermaid settings
+Need to install =mermaid-cli= first.
 #+begin_src emacs-lisp
 (use-package ob-mermaid
   :ensure t
@@ -3668,7 +3678,8 @@ Else, call `comment-or-uncomment-region' on the current line."
   (defadvice lsp-ui-imenu (after hide-lsp-ui-imenu-mode-line activate)
     (setq mode-line-format nil)))
 #+end_src
-*** company-lsp (abondoned, because lsp-mode already support with company-capf)
+*** company-lsp
+Abandoned, because lsp-mode already support with company-capf.
 #+begin_src emacs-lisp
 ;; (use-package company-lsp
 ;;   :quelpa ((company-lsp :fetcher github :repo "tigersoldier/company-lsp"))
@@ -3741,7 +3752,8 @@ Else, call `comment-or-uncomment-region' on the current line."
     (advice-add #'lsp-ivy--format-symbol-match :override #'my-lsp-ivy--format-symbol-match)
     ))
 #+end_src
-*** enable lsp mode in babel src block (abondoned, lsp mode has an official function lsp-org to support this)
+*** enable lsp mode in babel src block
+Abandoned, lsp mode has an official function lsp-org to support this.
 #+begin_src emacs-lisp
 ;; Enable LSP in org babel (method 1)
 ;; https://github.com/emacs-lsp/lsp-mode/issues/377
