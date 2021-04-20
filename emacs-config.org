@@ -622,9 +622,10 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   )
 
 (use-package color-theme-sanityinc-solarized
-  :ensure t
+  :disabled t
+  ;; :ensure t
   :config
-  (color-theme-sanityinc-solarized-dark)
+  ;; (color-theme-sanityinc-solarized-dark)
   ;; (color-theme-sanityinc-solarized-light)
   )
 
@@ -646,7 +647,7 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-nord t)
   ;; (load-theme 'doom-nord-light t)
   ;; (load-theme 'doom-vibrant t)
-  ;; (load-theme 'doom-palenight t)
+  (load-theme 'doom-palenight t)
   ;; (load-theme 'doom-zenburn t)
   ;; (load-theme 'doom-spacegrey t)
   ;; (load-theme 'doom-gruvbox t)
@@ -715,6 +716,17 @@ The original function deletes trailing whitespace of the current line."
     (delete-trailing-whitespace-except-current-line)))
 
 (add-hook 'before-save-hook #'smart-delete-trailing-whitespace)
+
+;; automatically add space between Chinese and English words.
+(use-package pangu-spacing
+  :ensure t
+  :hook (org-mode . (lambda ()
+                      (pangu-spacing-mode t)))
+  :config
+  ;; (global-pangu-spacing-mode 1)
+  ;; just display on overlay, don't add spaces when saving the file
+  (setq pangu-spacing-real-insert-separtor nil)
+  )
 #+end_src
 ** Notifications
 #+begin_src emacs-lisp
@@ -837,8 +849,17 @@ Run server mode as possible.
   (unless (server-running-p)
     (server-start))
   )
-;; (setq server-socket-dir "~/.emacs.d/server")
 #+end_src
+
+To run emacs as a daemon in MacOS, edit =/usr/local/Cellar/emacs-plus@27/27.2/homebrew.mxcl.emacs-plus@27.plist= file, change the argument from =--fg-daemon= to =--daemon= and then:
+#+begin_src shell -n :file-name: temp.sh
+brew services restart emacs-plus
+#+end_src
+
+To make emacs invisible on dock, navigate to your Application folder and right click on your Emacs application (not the client or daemon), and click on Show Package Contents:
++ Open the =Info.plist= with Emacs
++ Add a key =NSUIElement= with string value =1=
+
 * Window moving
 #+begin_src emacs-lisp
 (use-package ace-window
@@ -1791,7 +1812,14 @@ Version 2019-11-04"
   (org-list-demote-modify-bullet '(("+" . "-") ("1." . "a.") ("-" . "+")))
   (org-catch-invisible-edits 'smart)
   (org-insert-heading-respect-content t)
-  (org-image-actual-width nil)
+  ;; if there is a #+ATTR.*: width=“200”, resize to 200, otherwise resize to 600
+  (org-image-actual-width '(600))
+  ;; always resize inline images to 300 pixels
+  ;; (setq org-image-actual-width 300)
+  ;; if there is a #+ATTR.*: width=“200”, resize to 200, otherwise don’t resize
+  ;; (org-image-actual-width nil)
+  ;; Never resize and use original width (the default)
+  ;; (org-image-actual-width t)
   (org-imenu-depth 4)
   ;; call C-c C-o explicitly
   (org-return-follows-link nil)
@@ -2275,12 +2303,14 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
           ("c" . "comment")
           ("v" . "verse")
           ("html" . "src html")
-          ("sql" . "src sql -n :results raw drawer :engine mysql :database midea_cs :file-name temp.sql")
+          ("md" . "src markdown")
+          ("sql" . "src sql :results raw drawer :engine mysql :database midea_cs :file-name temp.sql")
           ("exhtml" . "export html")
           ("exmd" . "export md")
           ("el" . "src emacs-lisp -n")
-          ("sh" . "src shell -n :file-name: temp.sh")
-          ("json" . "src json -n")
+          ("sh" . "src shell :results output :file-name: temp.sh")
+          ("bs" . "src bash :results output :file-name: temp.sh")
+          ("json" . "src json")
           ("jp"  . "src jupyter-python -n :session py :file-name temp.py")
           ("ein" . "src ein-python -n :session localhost :results output :file-name temp.py")
           ("py" . "src python -n :results output :file-name temp.py")))
@@ -2292,9 +2322,13 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
                          "Insert a property template" 'org-tempo-tags)
   ;; define ditaa template filename will automatically generated
   (tempo-define-template "org-src-ditaa"
-                         '((concat "#+begin_src ditaa :file " (buffer-file-name) ".assets/" (format-time-string "%Y%m%d_%H%M%S") ".png") n p n "#+end_src" >)
+                         '((concat "#+begin_src ditaa :file " (buffer-file-name) ".assets/" (format-time-string "img_%Y%m%d_%H%M%S") ".png") n p n "#+end_src" >)
                          "<dt"
                          "Insert a src ditaa template" 'org-tempo-tags)
+  (tempo-define-template "org-src-mermaid"
+                         '((concat "#+begin_src mermaid :file " (buffer-file-name) ".assets/" (format-time-string "img_%Y%m%d_%H%M%S") ".png") n p n "#+end_src" >)
+                         "<mm"
+                         "Insert a src mermaid template" 'org-tempo-tags)
   (tempo-define-template "org-startup"
                          '("#+startup: overview" p)
                          "<st"
@@ -2319,6 +2353,10 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
                          '(":PROPERTIES:" n ":header-args:    :tangle no" n ":END:" >)
                          "<tn"
                          "Insert tangle no property" 'org-tempo-tags)
+  (tempo-define-template "org-custom-id"
+                         '(":PROPERTIES:" n ":CUSTOM_ID: " p n ":END:" >)
+                         "<ci"
+                         "Insert custom id property" 'org-tempo-tags)
   (tempo-define-template "org-reveal-split"
                          '("#+REVEAL: split" n p)
                          "<rs"
@@ -2326,6 +2364,7 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
   )
 #+end_src
 ** Org clock
+
 #+begin_src emacs-lisp
 (use-package org-clock
   :ensure nil
@@ -2815,7 +2854,7 @@ Do presentation with org mode inside Emacs program.
   (org-tree-slide-activate-message "Presentation started.")
   (org-tree-slide-deactivate-message "Presentation ended.")
   (org-tree-slide-header t)
-  (org-image-actual-width nil)
+  ;; (org-image-actual-width nil) ; this value has already been defined in org basic settings
   )
 #+end_src
 ** Grab links from different Mac Apps
@@ -2876,6 +2915,19 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
 | C-c C-t   | change TODO state                                                   |
 | C-c C-d   | set deadline date                                                   |
 | C-c C-s   | set schedule date                                                   |
+|-----------+---------------------------------------------------------------------|
+| C-c C-x . | org-timer: insert a relative timer to the buffer                    |
+| C-c C-x , | org-timer-pause-or-continue: pause/continue the timer               |
+| C-c C-x _ | org-timer-stop: stop the timer                                      |
+*** Rich text
+#+begin_example
+*bold*
+/italic/
+_underlined_
+=verbatim=
+~code~
++strike-through+
+#+end_example
 
 * Markdown settings
 #+begin_src emacs-lisp
@@ -3492,6 +3544,7 @@ Else, call `comment-or-uncomment-region' on the current line."
         ))
 #+end_src
 ** Flycheck and flymake settings
+
 #+begin_src emacs-lisp
 ;; (use-package flycheck
 ;;   :ensure t
@@ -3610,14 +3663,14 @@ Else, call `comment-or-uncomment-region' on the current line."
   (lsp-eldoc-hook nil)
   ;; (lsp-file-watch-threshold 2000)
   (lsp-enable-file-watchers nil)         ;; performance matters
-  (lsp-enable-text-document-color nil)   ;; as above
-  (lsp-enable-symbol-highlighting nil)   ;; as above
-  (lsp-enable-on-type-formatting nil)    ;; as above
+  ;; (lsp-enable-text-document-color nil)   ;; as above
+  ;; (lsp-enable-symbol-highlighting nil)   ;; as above
+  ;; (lsp-enable-on-type-formatting nil)    ;; as above
   (lsp-enable-indentation nil)           ;; don't change my code without my permission
   (lsp-keep-workspace-alive nil)         ;; auto kill lsp server
-  (lsp-headerline-breadcrumb-enable nil) ;; keep headline clean
-  (lsp-modeline-code-actions-enable nil) ;; keep modeline clean
-  (lsp-modeline-diagnostics-enable nil)  ;; as above
+  ;; (lsp-headerline-breadcrumb-enable nil) ;; keep headline clean
+  ;; (lsp-modeline-code-actions-enable nil) ;; keep modeline clean
+  ;; (lsp-modeline-diagnostics-enable nil)  ;; as above
   :bind (:map lsp-mode-map
               ("C-c f" . lsp-format-region)
               ("C-c d" . lsp-describe-thing-at-point)
@@ -3847,6 +3900,7 @@ pip install "ptvsd>=4.2"
   (use-package live-py-mode :ensure t)
 )
 
+;; need to pip install autopep8 first
 (use-package py-autopep8
   :ensure t
   :hook
@@ -3861,6 +3915,8 @@ pip install 'python-language-server[all]'
 #+end_src
 **** Option 2: Microsoft-Python-LanguageServer
 1. install mspyls binary.
+
++ Option 1: build from source code
 #+begin_src shell
 # 1. install dotnet
 brew install dotnet
@@ -3876,6 +3932,13 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
 # 4. Set executable to lsp-python-ms-executable or add binary directory to PATH
 #+end_src
 
++ Option 2: run =M-x lsp-python-ms-update-server= command inside Emacs and chmod binary:
+#+begin_src shell -n :file-name: temp.sh
+cd ~/.emacs.d/var/lsp-python-ms
+chmod 755 *.dll
+chmod 755 Microsoft.Python.LanguageServer
+#+end_src
+
 2. Then add =lsp-mode= configuration in Emacs:
 #+begin_src emacs-lisp
 (use-package lsp-python-ms
@@ -3887,7 +3950,7 @@ chmod a+x $(git rev-parse --show-toplevel)/output/bin/Release/osx-x64/publish/Mi
   :init
   (setq lsp-python-ms-auto-install-server t)
   (setq lsp-python-ms-python-executable "/usr/local/opt/python@3.9/libexec/bin/python")
-  (setq lsp-python-ms-executable "~/Documents/sandbox/python-language-server/output/bin/Release/osx-x64/publish/Microsoft.Python.LanguageServer")
+  (setq lsp-python-ms-executable "~/.emacs.d/var/lsp-python-ms/Microsoft.Python.LanguageServer")
   )
 #+end_src
 **** Option 3: pyright
@@ -3906,6 +3969,35 @@ This Server supports automatic install (need has npm installed as dependency). I
 ;;   :init (when (executable-find "python3")
 ;;           (setq lsp-pyright-python-executable-cmd "/usr/local/opt/python/bin/python3")))
 #+end_src
+*** Conda settings
+Install =miniconda= first:
+#+begin_src shell -n :file-name: temp.sh
+brew install miniconda
+#+end_src
+
+Conda settings:
+#+begin_src emacs-lisp -n
+(use-package conda
+  :ensure t
+  :config
+  ;; if you want interactive shell support, include:
+  (conda-env-initialize-interactive-shells)
+  ;; if you want eshell support, include:
+  (conda-env-initialize-eshell)
+  ;; if you want auto-activation (see below for details), include:
+  (conda-env-autoactivate-mode t)
+  ;; for anaconda:
+  ;; (setq conda-anaconda-home "/usr/local/anaconda3")
+  ;; for miniconda:
+  (setq conda-anaconda-home "/usr/local/Caskroom/miniconda/base/")
+  (setq conda-env-home-directory "/usr/local/Caskroom/miniconda/base/")
+  ;; get current environment--from environment variable CONDA_DEFAULT_ENV
+  (conda-env-activate "python3.8")
+  ;; (conda-env-activate 'getenv "CONDA_DEFAULT_ENV")
+  (setq-default mode-line-format (cons mode-line-format '(:exec conda-env-current-name)))
+  )
+#+end_src
+
 ** EIN settings
 For jupyter-notebook.
 #+begin_src emacs-lisp
@@ -4110,10 +4202,6 @@ npm i -g vscode-html-languageserver-bin
   :mode "\\.json\\'")
 #+end_src
 ** Treemacs
-:PROPERTIES:
-:header-args:    :tangle no
-:END:
-
 *** treemacs basic settings
 #+begin_src emacs-lisp
 (use-package treemacs
@@ -4762,7 +4850,7 @@ mu index
   (mu4e-maildir (expand-file-name "~/Mail"))
   (mu4e-get-mail-command "mbsync -c ~/.emacs.d/mu4e/.mbsyncrc -a")
   (mu4e-view-prefer-html t)
-  (mu4e-update-interval 180)
+  (mu4e-update-interval 1800)
   (mu4e-headers-auto-update t)
   (mu4e-compose-format-flowed t)
   (mu4e-view-show-images t)
@@ -5309,7 +5397,11 @@ This is an alternative to smartparens.
   )
 #+end_src
 ** Beacon mode
-Highlight the current cursor when scrolling.
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
+
+Highlight the current cursor when scrolling. This package will affect CPU/Memory Usage.
 #+begin_src emacs-lisp
 (use-package beacon
   :ensure t
@@ -5349,6 +5441,15 @@ Highlight the current cursor when scrolling.
 )
 #+end_src
 ** Spell check
+1. install =hunspell=
+#+begin_src shell -n :file-name: temp.sh
+brew install hunspell
+#+end_src
+
+2. cp dictionary into =~/LibrarySpelling=
+#+begin_src shell -n :file-name: temp.sh
+cp ~/iCloud/Terminal/Spelling/* ~/Library/Spelling/
+#+end_src
 #+begin_src emacs-lisp
 (use-package ispell
   :ensure nil
@@ -5403,66 +5504,67 @@ Highlight the current cursor when scrolling.
 #+end_src
 ** Dashboard
 #+begin_src emacs-lisp
-(use-package dashboard
-  :ensure t
-  :diminish (dashboard-mode page-break-lines-mode)
-  :hook ((after-init . dashboard-setup-startup-hook)
-         (dashboard-mode . (lambda ()
-                             (setq-local display-line-numbers-mode nil))))
-  :bind
-  (;; ("C-z d" . open-dashboard)
-   :map dashboard-mode-map
-   (
-    ;; ("n" . dashboard-next-line)
-    ;; ("k" . nil) ;; a way to unbind key via :bind
-    ;; ("p" . dashboard-previous-line)
-    ;; ("j" . dashboard-jump-to-projects)
-    ;; ("N" . dashboard-next-section)
-    ;; ("F" . dashboard-previous-section)
-    ))
-  :config
-  ;; (custom-set-variables
-  ;;  '(dashboard-item-shortcuts '((recents . "r")
-  ;;                               (bookmarks . "m")
-  ;;                               (projects . "j")
-  ;;                               (agenda . "a")
-  ;;                               (registers . "e"))))
-  ;; (unbind-key "p" dashboard-mode-map) ;; a way to unbind key
+  (use-package dashboard
+    :ensure t
+    :diminish (dashboard-mode page-break-lines-mode)
+    :hook ((after-init . dashboard-setup-startup-hook)
+	   (dashboard-mode . (lambda ()
+			       (setq-local display-line-numbers-mode nil))))
+    :bind
+    (;; ("C-z d" . open-dashboard)
+     :map dashboard-mode-map
+     (
+      ;; ("n" . dashboard-next-line)
+      ;; ("k" . nil) ;; a way to unbind key via :bind
+      ;; ("p" . dashboard-previous-line)
+      ;; ("j" . dashboard-jump-to-projects)
+      ;; ("N" . dashboard-next-section)
+      ;; ("F" . dashboard-previous-section)
+      ))
+    :config
+    ;; (custom-set-variables
+    ;;  '(dashboard-item-shortcuts '((recents . "r")
+    ;;                               (bookmarks . "m")
+    ;;                               (projects . "j")
+    ;;                               (agenda . "a")
+    ;;                               (registers . "e"))))
+    ;; (unbind-key "p" dashboard-mode-map) ;; a way to unbind key
 
-  ;; show Dashboard in frames created with emacsclient -c
-  (if (daemonp)
-      (setq initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name))))
+    ;; show Dashboard in frames created with emacsclient -c
+    ;; (if (daemonp) ; this line will cause daemon failure
+    ;;     (setq initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name))))
 
-  ;; To use it with counsel-projectile
-  (setq dashboard-projects-switch-function 'counsel-projectile-switch-project-by-name)
+    ;; To use it with counsel-projectile
+    (setq dashboard-projects-switch-function 'counsel-projectile-switch-project-by-name)
 
-  ;; show agenda all or for the upcoming seven days
-  (setq dashboard-filter-agenda-entry 'dashboard-no-filter-agenda)
-  ;; (setq dashboard-week-agenda t)
-  :custom
-  (dashboard-startup-banner 'logo)
-  (dashboard-set-heading-icons t)
-  (dashboard-set-file-icons t)
-  (dashboard-set-init-info t)
-  (dashboard-set-navigator t)
-  (dashboard-items '((agenda    . 10)
-                     (recents   . 5)
-                     (projects  . 5)
-                     (bookmarks . 2)))
-  (dashboard-navigator-buttons
-   (if (featurep 'all-the-icons)
-       `(((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust -0.05)
-           "My Emacs Github" "Browse My EMACS Homepage"
-           (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
-          (,(all-the-icons-fileicon "elisp" :height 1.0 :v-adjust -0.1)
-           "Emacs Configuration" "" (lambda (&rest _) (open-emacsconfig)))
-          (,(all-the-icons-faicon "cogs" :height 1.0 :v-adjust -0.1)
-           "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))
-     `((("" "My Emacs Github" "Browse My EMACS Homepage"
-         (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
-        ("" "Emacs Configuration" "" (lambda (&rest _) (open-emacsconifg)))
-        ("" "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))))
-  )
+    ;; show agenda all or for the upcoming seven days
+    (setq dashboard-filter-agenda-entry 'dashboard-no-filter-agenda)
+    ;; (setq dashboard-week-agenda t)
+    :custom
+    ;; (dashboard-startup-banner 'logo)
+    (dashboard-startup-banner nil)
+    (dashboard-set-heading-icons t)
+    (dashboard-set-file-icons t)
+    (dashboard-set-init-info t)
+    (dashboard-set-navigator t)
+    (dashboard-items '((agenda    . 15)
+		       (recents   . 8)
+		       (projects  . 5)
+		       (bookmarks . 3)))
+    (dashboard-navigator-buttons
+     (if (featurep 'all-the-icons)
+	 `(((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust -0.05)
+	     "My Emacs Github" "Browse My EMACS Homepage"
+	     (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
+	    (,(all-the-icons-fileicon "elisp" :height 1.0 :v-adjust -0.1)
+	     "Emacs Configuration" "" (lambda (&rest _) (open-emacsconfig)))
+	    (,(all-the-icons-faicon "cogs" :height 1.0 :v-adjust -0.1)
+	     "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))
+       `((("" "My Emacs Github" "Browse My EMACS Homepage"
+	   (lambda (&rest _) (browse-url "https://github.com/wowhxj/.emacs.d")))
+	  ("" "Emacs Configuration" "" (lambda (&rest _) (open-emacsconifg)))
+	  ("" "Update packages" "" (lambda (&rest _) (auto-package-update-now)))))))
+    )
 #+end_src
 ** Yasnippet
 #+begin_src emacs-lisp
