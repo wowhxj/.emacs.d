@@ -366,7 +366,7 @@ brew install pinentry-mac
 (setq default-frame-alist
       '((top . 0)
         (left . 80)
-        (width . 180)
+        (width . 160)
         (height . 50)))
 #+end_src
 
@@ -609,24 +609,23 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
 #+begin_src emacs-lisp
 (use-package apropospriate-theme
   :ensure t
-  :config
+  ;; :config
   ;; (load-theme 'apropospriate-light t)
   ;; (load-theme 'apropospriate-dark t)
   )
 
-(use-package solarized-theme
+(use-package lab-themes
   :ensure t
-  :config
-  ;; (load-theme 'apropospriate-light t)
-  ;; (load-theme 'solarized-dark t)
+  ;; :config
+  ;; (lab-themes-load-style 'light)
+  ;; (lab-themes-load-style 'dark)
   )
 
-(use-package color-theme-sanityinc-solarized
-  :disabled t
-  ;; :ensure t
-  :config
-  ;; (color-theme-sanityinc-solarized-dark)
-  ;; (color-theme-sanityinc-solarized-light)
+(use-package solarized-theme
+  :ensure t
+  ;; :config
+  ;; (load-theme 'apropospriate-light t)
+  ;; (load-theme 'solarized-dark t)
   )
 
 (use-package doom-themes
@@ -646,8 +645,8 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-one-light t)
   ;; (load-theme 'doom-nord t)
   ;; (load-theme 'doom-nord-light t)
-  ;; (load-theme 'doom-vibrant t)
-  (load-theme 'doom-palenight t)
+  (load-theme 'doom-vibrant t)
+  ;; (load-theme 'doom-palenight t)
   ;; (load-theme 'doom-zenburn t)
   ;; (load-theme 'doom-spacegrey t)
   ;; (load-theme 'doom-gruvbox t)
@@ -657,11 +656,12 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
   ;; (load-theme 'doom-acario-light t)
   ;; (load-theme 'doom-opera-light t)
   ;; (load-theme 'doom-tomorrow-day t)
-  (defun switch-theme ()
-    "An interactive funtion to switch themes."
-    (interactive)
-    (disable-theme (intern (car (mapcar #'symbol-name custom-enabled-themes))))
-    (call-interactively #'load-theme)))
+  ;; (defun switch-theme ()
+  ;;   "An interactive funtion to switch themes."
+  ;;   (interactive)
+  ;;   (disable-theme (intern (car (mapcar #'symbol-name custom-enabled-themes))))
+  ;;   (call-interactively #'load-theme))
+  )
 
 ;; automatically change theme based on time and location
 ;; (use-package theme-changer
@@ -672,7 +672,7 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
 ;;   (setq calendar-latitude 30.82)
 ;;   (setq calendar-longitude 120.51)
 ;;   ;; set day and night themes
-;;   (change-theme 'doom-one-light 'doom-palenight)
+;;   (change-theme 'doom-solarized-light 'doom-solarized-dark)
 ;;   )
 
 ;; following is another snippet from:
@@ -688,7 +688,7 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
 ;;   (setq doom-theme now))
 #+end_src
 ** Optimize editing experience
-Remove useless whitespace before saving.
+*** Remove useless whitespace before saving
 #+begin_src emacs-lisp
 ;; Remove useless whitespace before saving a file
 (defun delete-trailing-whitespace-except-current-line ()
@@ -716,16 +716,23 @@ The original function deletes trailing whitespace of the current line."
     (delete-trailing-whitespace-except-current-line)))
 
 (add-hook 'before-save-hook #'smart-delete-trailing-whitespace)
-
+#+end_src
+*** pangu-spacing
+=pangu-spacing= is a package with automatically add space between Chinese and English characters.
+#+begin_src emacs-lisp -n
 ;; automatically add space between Chinese and English words.
 (use-package pangu-spacing
   :ensure t
-  :hook (org-mode . (lambda ()
-                      (pangu-spacing-mode t)))
+  ;; :disabled t ; disable because it will affect org table format
+  ;; :hook (org-mode . (lambda ()
+  ;;                     (pangu-spacing-mode t)))
   :config
-  ;; (global-pangu-spacing-mode 1)
-  ;; just display on overlay, don't add spaces when saving the file
-  (setq pangu-spacing-real-insert-separtor nil)
+  ;; globally open this feature
+  (global-pangu-spacing-mode 1)
+  ;; disable in org src code block
+  (add-hook 'org-src-mode-hook (lambda () (pangu-spacing-mode 0)))
+  ;; just display on overlay, OR add spaces when saving the file
+  (setq pangu-spacing-real-insert-separtor t)
   )
 #+end_src
 ** Notifications
@@ -786,36 +793,36 @@ Auto backup and auto save.
 Use utf-8 everywhere.
 #+begin_src emacs-lisp
 ;; from purcell:
-(defun sanityinc/locale-var-encoding (v)
-  "Return the encoding portion of the locale string V, or nil if missing."
-  (when v
-    (save-match-data
-      (let ((case-fold-search t))
-        (when (string-match "\\.\\([^.]*\\)\\'" v)
-          (intern (downcase (match-string 1 v))))))))
+;; (defun sanityinc/locale-var-encoding (v)
+;;   "Return the encoding portion of the locale string V, or nil if missing."
+;;   (when v
+;;     (save-match-data
+;;       (let ((case-fold-search t))
+;;         (when (string-match "\\.\\([^.]*\\)\\'" v)
+;;           (intern (downcase (match-string 1 v))))))))
 
-(dolist (varname '("LC_ALL" "LANG" "LC_CTYPE"))
-  (let ((encoding (sanityinc/locale-var-encoding (getenv varname))))
-    (unless (memq encoding '(nil utf8 utf-8))
-      (message "Warning: non-UTF8 encoding in environment variable %s may cause interop problems with this Emacs configuration." varname))))
+;; (dolist (varname '("LC_ALL" "LANG" "LC_CTYPE"))
+;;   (let ((encoding (sanityinc/locale-var-encoding (getenv varname))))
+;;     (unless (memq encoding '(nil utf8 utf-8))
+;;       (message "Warning: non-UTF8 encoding in environment variable %s may cause interop problems with this Emacs configuration." varname))))
 
-(when (fboundp 'set-charset-priority)
-  (set-charset-priority 'unicode))
-(prefer-coding-system 'utf-8)
-(setq locale-coding-system 'utf-8)
-(unless (eq system-type 'windows-nt)
-  (set-selection-coding-system 'utf-8))
+;; (when (fboundp 'set-charset-priority)
+;;   (set-charset-priority 'unicode))
+;; (prefer-coding-system 'utf-8)
+;; (setq locale-coding-system 'utf-8)
+;; (unless (eq system-type 'windows-nt)
+;;   (set-selection-coding-system 'utf-8))
 
 ;; Use UTF8 everywhere, see https://thraxys.wordpress.com/2016/01/13/utf-8-in-emacs-everywhere-forever/
-;; (setq locale-coding-system 'utf-8)
-;; (set-terminal-coding-system 'utf-8)
-;; (set-keyboard-coding-system 'utf-8)
-;; (set-selection-coding-system 'utf-8)
-;; (set-default-coding-systems 'utf-8)
-;; (set-language-environment 'utf-8)
-;; (prefer-coding-system 'utf-8)
-;; (when (display-graphic-p)
-;;   (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
+(setq locale-coding-system 'utf-8)
+(set-terminal-coding-system 'utf-8)
+(set-keyboard-coding-system 'utf-8)
+(set-selection-coding-system 'utf-8)
+(set-default-coding-systems 'utf-8)
+(set-language-environment 'utf-8)
+(prefer-coding-system 'utf-8)
+(when (display-graphic-p)
+  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
 #+end_src
 
 If we encounter some coding system issues in a file, refer to following tips:
@@ -1778,6 +1785,25 @@ Version 2019-11-04"
                     (with-current-buffer buf
                       (setq mode-line-format nil))))))
       (apply func args)))
+
+  ;; add square brackets to allow emphasis
+  ;; see: https://github.com/jgm/pandoc/issues/4378
+  (with-eval-after-load 'org
+    ;; chars for prematch
+    (setcar org-emphasis-regexp-components            "     ('\"{“”\[\\")
+    ;; chars for postmatch
+    (setcar (nthcdr 1 org-emphasis-regexp-components) "\] -   .,!?;''“”\")}/\\“”")
+    ;; forbidden chars
+    (setcar (nthcdr 2 org-emphasis-regexp-components) "    \t\r\n,\"")
+    ;; body
+    (setcar (nthcdr 3 org-emphasis-regexp-components) ".")
+    ;; max newlines
+    (setcar (nthcdr 4 org-emphasis-regexp-components) 1)
+    (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components))
+
+  ;; make LaTex preview scale larger
+  (plist-put org-format-latex-options :scale 1.8)
+
   :custom-face
   (org-document-title ((t (:height 1.75 :weight bold))))
   (org-level-1 ((t (:height 1.3 :foreground "#51afef" :weight bold))))
@@ -2107,6 +2133,7 @@ otherwise use the subtree title."
                               (mermaid         . t)
                               (shell           . t)
                               (browser         . t)
+                              (http            . t)
                               (sql             . t)
                               (ditaa           . t)
                               (jupyter         . t)
@@ -2142,6 +2169,16 @@ otherwise use the subtree title."
 ;;   (setq ob-ipython-resources-dir foldername)
 ;;   )
 #+end_src
+*** ob-http
+HTTP request in org-mode babel. Can be used to test API. Requires ~curl~.
+#+begin_src emacs-lisp -n
+(use-package ob-http
+  :ensure t
+  )
+#+end_src
+
+Also need to add =http= to =org-babel-load-languages=. Please see [[*src basic settings][org-babel-load-languages]] for details.
+
 ** Capture settings
 *** Basic settings
 #+begin_src emacs-lisp
@@ -2304,16 +2341,18 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
           ("v" . "verse")
           ("html" . "src html")
           ("md" . "src markdown")
-          ("sql" . "src sql :results raw drawer :engine mysql :database midea_cs :file-name temp.sql")
+          ("sqlmidea" . "src sql :engine mysql :database midea_cs :file temp.sql")
+          ("sqlstudy" . "src sql :engine mysql :database study :file temp.sql")
           ("exhtml" . "export html")
           ("exmd" . "export md")
           ("el" . "src emacs-lisp -n")
-          ("sh" . "src shell :results output :file-name: temp.sh")
-          ("bs" . "src bash :results output :file-name: temp.sh")
+          ("sh" . "src shell :results output :file: temp.sh")
+          ("bs" . "src bash :results output :file: temp.sh")
           ("json" . "src json")
-          ("jp"  . "src jupyter-python -n :session py :file-name temp.py")
-          ("ein" . "src ein-python -n :session localhost :results output :file-name temp.py")
-          ("py" . "src python -n :results output :file-name temp.py")))
+          ("jp"  . "src jupyter-python -n :session py :file temp.py")
+          ("http" . "src http :pretty")
+          ("ein" . "src ein-python -n :session localhost :results output :file temp.py")
+          ("py" . "src python -n :results output :file temp.py")))
 
   ;; complex template definition
   (tempo-define-template "headline-property"
@@ -2361,6 +2400,11 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
                          '("#+REVEAL: split" n p)
                          "<rs"
                          "Insert REVEAL split mark" 'org-tempo-tags)
+  (tempo-define-template "org-image-attr"
+                        '( "#+ATTR_ORG: :width " p n "#+ATTR_HTML: :width ")
+                         "<attr"
+                         "Insert image attributes" 'org-tempo-tags)
+
   )
 #+end_src
 ** Org clock
@@ -2611,7 +2655,10 @@ brew install pngpaste
 #+end_src
 
 ** Mermaid settings
-Need to install =mermaid-cli= first.
+Need to install =mermaid-cli= first. See [[https://mermaid-js.github.io/mermaid/#/flowchart?id=graph][mermaid syntax]] for syntax details.
+#+begin_src shell :results output :file: temp.sh
+brew install mermaid-cli
+#+end_src
 #+begin_src emacs-lisp
 (use-package ob-mermaid
   :ensure t
@@ -2621,8 +2668,8 @@ Need to install =mermaid-cli= first.
 
 (use-package mermaid-mode
   :ensure t
-  :init
-  (setq mermaid-tmp-dir "temp")
+  ;; :init
+  ;; (setq mermaid-tmp-dir "temp")
   )
 #+end_src
 ** Support ditaa
@@ -2909,6 +2956,10 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
 #+end_src
 ** org mode tips
 *** Some useful key-bindings
+:PROPERTIES:
+:CUSTOM_ID: org-keybindings
+:END:
+
 | key       | description                                                         |
 |-----------+---------------------------------------------------------------------|
 | C-c C-x p | insert properties for headline (we have already set <P in org-tempo |
@@ -2916,6 +2967,7 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
 | C-c C-d   | set deadline date                                                   |
 | C-c C-s   | set schedule date                                                   |
 |-----------+---------------------------------------------------------------------|
+| C-c C-x 0 | org-timer-start: start a timer                                      |
 | C-c C-x . | org-timer: insert a relative timer to the buffer                    |
 | C-c C-x , | org-timer-pause-or-continue: pause/continue the timer               |
 | C-c C-x _ | org-timer-stop: stop the timer                                      |
@@ -2928,6 +2980,29 @@ _underlined_
 ~code~
 +strike-through+
 #+end_example
+*** Agenda
++ Use ~C-c .~ to add a org-time-stamp
+  <2021-04-21 Wed>
++ entering times:
+  - ~+1d 10+1~: tomorrow 10:00-11:00
+    <2021-04-22 Thu 15:00-15:30>
+  - ~wed 3:30pm+0:30~: next Wed 3:30pm to 4pm
+    <2021-04-28 Wed 10:00-10:20>
++ changing timestamps
+  - ~S-<left|right>~: shift days
+  - ~S-<up|down>~: shift year/month/day/hour/minutes
+*** timer
+Please see [[#org-keybindings][Useful org key bindings]] for details.
+*** moving things
+Use ~M-<arrow>~ to moving things such as:
+- lists
+- headings
+- table rows/colomns
+- paragraphs
+*** crypt
+Use ~:crypt:~ tag to gpg-encrypted content on saving the buffer.
+*** org-table
+Use =\ vert= to input vertical bar inside a org-table cell.
 
 * Markdown settings
 #+begin_src emacs-lisp
@@ -3686,6 +3761,9 @@ Else, call `comment-or-uncomment-region' on the current line."
          ;; (lsp-mode . (lambda ()
          ;;               (setq-local company-backends '(company-lsp company-tabnine))))
          )
+  :config
+  ;; fix =void-function lsp-diagnostics-lsp-checker-if-needed= error.
+  (require 'lsp-diagnostics)
   )
 #+end_src
 *** lsp ui
@@ -3806,38 +3884,39 @@ Abandoned, because lsp-mode already support with company-capf.
     ))
 #+end_src
 *** enable lsp mode in babel src block
+
 Abandoned, lsp mode has an official function lsp-org to support this.
 #+begin_src emacs-lisp
 ;; Enable LSP in org babel (method 1)
 ;; https://github.com/emacs-lsp/lsp-mode/issues/377
-;; (cl-defmacro lsp-org-babel-enable (lang)
-;;   "Support LANG in org source code block."
-;;   (cl-check-type lang stringp)
-;;   (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
-;;          (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
-;;     `(progn
-;;        (defun ,intern-pre (info)
-;;          (let ((file-name (->> info caddr (alist-get :file))))
-;;            (unless file-name
-;;              (user-error "LSP:: specify `:file' property to enable"))
-;;            (setq buffer-file-name file-name)
-;;            (lsp-deferred)
-;;            ))
-;;        (put ',intern-pre 'function-documentation
-;;             (format "Enable LSP mode in the buffer of org source block (%s)."
-;;                     (upcase ,lang)))
-;;        (if (fboundp ',edit-pre)
-;;            (advice-add ',edit-pre :after ',intern-pre)
-;;          (progn
-;;            (defun ,edit-pre (info)
-;;              (,intern-pre info))
-;;            (put ',edit-pre 'function-documentation
-;;                 (format "Prepare local buffer environment for org source block (%s)."
-;;                         (upcase ,lang))))))))
-;; (defvar org-babel-lang-list
-;;   '("python" "sh" "sql"))
-;; (dolist (lang org-babel-lang-list)
-;;   (eval `(lsp-org-babel-enable ,lang)))
+(cl-defmacro lsp-org-babel-enable (lang)
+  "Support LANG in org source code block."
+  (cl-check-type lang stringp)
+  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+    `(progn
+       (defun ,intern-pre (info)
+         (let ((file-name (->> info caddr (alist-get :file))))
+           (unless file-name
+             (user-error "LSP:: specify `:file' property to enable"))
+           (setq buffer-file-name file-name)
+           (lsp-deferred)
+           ))
+       (put ',intern-pre 'function-documentation
+            (format "Enable LSP mode in the buffer of org source block (%s)."
+                    (upcase ,lang)))
+       (if (fboundp ',edit-pre)
+           (advice-add ',edit-pre :after ',intern-pre)
+         (progn
+           (defun ,edit-pre (info)
+             (,intern-pre info))
+           (put ',edit-pre 'function-documentation
+                (format "Prepare local buffer environment for org source block (%s)."
+                        (upcase ,lang))))))))
+(defvar org-babel-lang-list
+  '("python" "sh" "sql" "jupyter"))
+(dolist (lang org-babel-lang-list)
+  (eval `(lsp-org-babel-enable ,lang)))
 
 ;; Enable LSP in org babel (method 2)
 ;; (defun org-babel-edit-prep:python (babel-info)
@@ -3954,7 +4033,7 @@ chmod 755 Microsoft.Python.LanguageServer
   )
 #+end_src
 **** Option 3: pyright
-This Server supports automatic install (need has npm installed as dependency). Install this language server with M-x =lsp-install-server= =RET= =pyright= =RET=.
+This Server supports automatic install (need to has npm installed as dependency). Install this language server with M-x =lsp-install-server= =RET= =pyright= =RET=.
 #+begin_src emacs-lisp
 ;; (use-package lsp-pyright
 ;;   :ensure t
@@ -4123,7 +4202,11 @@ export PATH=~/go/bin/:$PATH
 2. config database information
 #+begin_src emacs-lisp
 (setq lsp-sqls-connections
-    '(((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/midea_cs"))))
+    '(
+      ;; ((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/midea_cs"))
+      ((driver . "mysql") (dataSourceName . "root:12345678@tcp(localhost:3306)/study"))
+      )
+    )
 #+end_src
 *** Use ejc-sql as a MySQL client
 :PROPERTIES:
@@ -5502,6 +5585,14 @@ cp ~/iCloud/Terminal/Spelling/* ~/Library/Spelling/
   :ensure t
   :hook (prog-mode . rainbow-delimiters-mode))
 #+end_src
+** emojify
+Display emojis in Emacs. Please see [[https://github.com/iqbalansari/emacs-emojify][Github emojify]] for details.
+#+begin_src emacs-lisp -n
+(use-package emojify
+  :ensure t
+  :hook (after-init . global-emojify-mode))
+#+end_src
+
 ** Dashboard
 #+begin_src emacs-lisp
   (use-package dashboard
