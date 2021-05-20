@@ -295,18 +295,18 @@ App like =Gnus=, =MU4E= will read password information from this file.
 You can also to add additional sources such as MacOS keychain("internet" or "generic") to the =auth-source= list.
 
 1. Firstly need to add password to keychain via command line:
-#+begin_src shell -n :file-name: temp.sh
+   #+begin_src shell -n :file-name: temp.sh
 security add-internet-password -a huangxj73@midea.com -l smtp.midea.com -P 465 -r smtp -s smtp.midea.com -w "my-password" -U
-#+end_src
+   #+end_src
 
 2. Then set =auth-source=:
-#+begin_src emacs-lisp -n
+   #+begin_src emacs-lisp -n
 ;; (when sys/macp
 ;;   ;; (add-to-list 'auth-sources 'macos-keychain-internet)
 ;;   ;; (add-to-list 'auth-sources 'macos-keychain-generic)
 ;;   (setq auth-sources (quote (macos-keychain-internet macos-keychain-generic)))
 ;;   )
-#+end_src
+   #+end_src
 
 ** Create a recipient for encryption
 #+begin_src shell -n :file-name: temp.sh
@@ -599,10 +599,9 @@ Need to install =source code pro= and =WenQuanYi Zen Hei Mono= font.
              (lambda (new-frame)
                (select-frame new-frame)
                (when (display-graphic-p)
-               ;; (if window-system
                    (set-font "Source Code Pro" "Microsoft YaHei" 14 16))))
+
 (when (display-graphic-p)
-;; (if window-system
     (set-font "Source Code Pro" "Microsoft YaHei" 14 16))
 #+end_src
 ** Theme settings
@@ -723,9 +722,6 @@ The original function deletes trailing whitespace of the current line."
 ;; automatically add space between Chinese and English words.
 (use-package pangu-spacing
   :ensure t
-  ;; :disabled t ; disable because it will affect org table format
-  ;; :hook (org-mode . (lambda ()
-  ;;                     (pangu-spacing-mode t)))
   :config
   ;; globally open this feature
   (global-pangu-spacing-mode 1)
