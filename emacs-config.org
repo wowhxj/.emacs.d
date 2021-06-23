@@ -93,6 +93,12 @@ Use the following keywords ordering for =use-package=:
   (quelpa-self-upgrade-p nil)
   (quelpa-checkout-melpa-p nil))
 #+end_src
+
+If you cannot access github because of GFW, please add git proxy as following:
+#+begin_src shell :results output :file: temp.sh
+git config --global http.proxy http://127.0.0.1:6152
+#+end_src
+
 ** Auto update package
 #+begin_src emacs-lisp
 (use-package auto-package-update
@@ -908,6 +914,7 @@ To make emacs invisible on dock, navigate to your Application folder and right c
   (tramp-default-method "ssh"))
 #+end_src
 * iBuffer settings
+** ibuffer basic settings
 #+begin_src emacs-lisp
 ;; Use ibuffer instead
 (fset 'list-buffers 'ibuffer)
@@ -976,6 +983,31 @@ To make emacs invisible on dock, navigate to your Application folder and right c
       ("Images" (or (mode . image-mode)
                     (mode . image-dired-display-image-mode)
                     (mode . image-dired-thumbnail-mode)))))))
+#+end_src
+** all-the-icons-ibuffer
+#+begin_src emacs-lisp
+(use-package all-the-icons-ibuffer
+  :ensure t
+  :init (all-the-icons-ibuffer-mode 1)
+  :config
+  ;; The default icon size in ibuffer.
+  (setq all-the-icons-ibuffer-icon-size 1.0)
+
+  ;; The default vertical adjustment of the icon in ibuffer.
+  (setq all-the-icons-ibuffer-icon-v-adjust 0.0)
+
+  ;; Use human readable file size in ibuffer.
+  (setq  all-the-icons-ibuffer-human-readable-size t)
+
+  ;; A list of ways to display buffer lines with `all-the-icons'.
+  ;; See `ibuffer-formats' for details.
+  all-the-icons-ibuffer-formats
+
+  ;; Slow Rendering
+  ;; If you experience a slow down in performance when rendering multiple icons simultaneously,
+  ;; you can try setting the following variable
+  (setq inhibit-compacting-font-caches t)
+  )
 #+end_src
 * Recent files open
 #+begin_src emacs-lisp
@@ -1888,7 +1920,7 @@ Version 2019-11-04"
   (org-outline-path-complete-in-steps nil)
   (org-refile-allow-creating-parent-nodes 'confirm)
   ;; tags
-  (org-tags-column 0)
+  (org-tags-column -77)
   (org-use-tag-inheritance nil)
   (org-agenda-use-tag-inheritance nil)
   (org-use-fast-tag-selection t)
@@ -1938,6 +1970,40 @@ Download =org-pretty-table.el= from [[https://github.com/Fuco1/org-pretty-table]
 (require 'org-pretty-table)
 (add-hook 'org-mode-hook (lambda () (org-pretty-table-mode)))
 #+end_src
+** Org appear
+Toggle visibility of *emphasis markers*, links, /subscripts/, and superscripts by customising variables such as org-hide-emphasis-markers. However, it is currently not possible to do this interactively and on an element-by-element basis. [[https://github.com/awth13/org-appear][org-appear]] will solve this.
+#+begin_src emacs-lisp
+(use-package org-appear
+  :ensure t
+  :hook (org-mode . org-appear-mode)
+  )
+#+end_src
+** Online images and youtube videos
+Please see [[https://github.com/TobiasZawada/org-yt][org-yt]] for details.
+#+begin_src emacs-lisp -n
+(require 'org-yt)
+
+(defun org-image-link (protocol link _description)
+  "Interpret LINK as base64-encoded image data."
+  (cl-assert (string-match "\\`img" protocol) nil
+             "Expected protocol type starting with img")
+  (let ((buf (url-retrieve-synchronously (concat (substring protocol 3) ":" link))))
+    (cl-assert buf nil
+               "Download of image \"%s\" failed." link)
+    (with-current-buffer buf
+      (goto-char (point-min))
+      (re-search-forward "\r?\n\r?\n")
+      (buffer-substring-no-properties (point) (point-max)))))
+
+(org-link-set-parameters
+ "imghttp"
+ :image-data-fun #'org-image-link)
+
+(org-link-set-parameters
+ "imghttps"
+ :image-data-fun #'org-image-link)
+#+end_src
+
 ** Enhance refile to a new file
 Refile to a new org file. Refer to:
 https://stackoverflow.com/questions/33885244/emacs-org-mode-how-can-i-refile-a-subtree-to-a-new-file
@@ -2341,14 +2407,14 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
           ("sqlstudy" . "src sql :engine mysql :database study :file temp.sql")
           ("exhtml" . "export html")
           ("exmd" . "export md")
-          ("el" . "src emacs-lisp -n")
+          ("el" . "src emacs-lisp")
           ("sh" . "src shell :results output :file: temp.sh")
           ("bs" . "src bash :results output :file: temp.sh")
           ("json" . "src json")
-          ("jp"  . "src jupyter-python -n :session py :file temp.py")
+          ("jp"  . "src jupyter-python :session py :file temp.py")
           ("http" . "src http :pretty")
-          ("ein" . "src ein-python -n :session localhost :results output :file temp.py")
-          ("py" . "src python -n :results output :file temp.py")))
+          ("ein" . "src ein-python :session localhost :results output :file temp.py")
+          ("py" . "src python :results output :file temp.py")))
 
   ;; complex template definition
   (tempo-define-template "headline-property"
@@ -2397,9 +2463,17 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
                          "<rs"
                          "Insert REVEAL split mark" 'org-tempo-tags)
   (tempo-define-template "org-image-attr"
-                        '( "#+ATTR_ORG: :width " p n "#+ATTR_HTML: :width ")
+                         '( "#+ATTR_ORG: :width " p n "#+ATTR_HTML: :width ")
                          "<attr"
                          "Insert image attributes" 'org-tempo-tags)
+  (tempo-define-template "org-options-toc"
+                         '( "#+OPTIONS: toc:nil num:4 H:4 ^:nil pri:t" n p)
+                         "<toc"
+                         "Insert options toc settings" 'org-tempo-tags)
+  (tempo-define-template "org-html-head"
+                         '( "#+HTML_HEAD: <link rel=\"stylesheet\" type=\"text/css\" href=\"http://gongzhitaao.org/orgcss/org.css\"" n p)
+                         "<hh"
+                         "Insert html head settings" 'org-tempo-tags)
 
   )
 #+end_src
@@ -2464,7 +2538,7 @@ For org-mode, use =org-tempo= instead of =yasnippet=.
   (org-export-with-sub-superscripts '{})
   ;; Use :eval never-export header argument to avoid evaluating.
   (org-export-use-babel t)
-  (org-export-headline-levels 5)
+  (org-export-headline-levels 9)
   (org-export-coding-system 'utf-8)
   (org-export-with-broken-links 'mark)
   ;; (org-export-backends '(ascii html md icalendar man))) ; original value
@@ -2476,12 +2550,14 @@ Make all exported files into =exported= directory.
 (defun org-export-output-file-name-modified (orig-fun extension &optional subtreep pub-dir)
   (unless pub-dir
     (setq pub-dir "exported")
+    ;; (setq pub-dir (concat (buffer-file-name) ".assets/"))
     (unless (file-directory-p pub-dir)
       (make-directory pub-dir)))
   (apply orig-fun extension subtreep pub-dir nil))
 (advice-add 'org-export-output-file-name :around #'org-export-output-file-name-modified)
 #+end_src
 *** Backend settings
+**** Backend basic settings
 #+begin_src emacs-lisp
 (use-package ox-html
   :ensure nil
@@ -2498,7 +2574,9 @@ Make all exported files into =exported= directory.
   :custom
   (htmlize-pre-style t)
   (htmlize-output-type 'inline-css))
-
+#+end_src
+**** Pandoc
+#+begin_src emacs-lisp
 ;; use pandoc backend to replace md backend
 ;; fix code block export problem
 (use-package ox-pandoc
@@ -2537,13 +2615,66 @@ Make all exported files into =exported= directory.
        (reverse blocks)
        ))))
 (add-hook 'org-export-before-parsing-hook 'my/ox-pandoc-fix-export-blocks)
-
+#+end_src
+**** TWBS
+Twitter Bootstrap style HTML backend.
+#+begin_src emacs-lisp
 ;; Export org-mode docs as HTML compatible with Twitter Bootstrap.
 (use-package ox-twbs
   :ensure t
   :after org
   )
 #+end_src
+**** GFM
+Github Flavored Markdown backend.
+#+begin_src emacs-lisp
+;; Github Flavored Markdown exporter
+(use-package ox-gfm
+  :ensure t
+  :after org
+  )
+#+end_src
+**** org-mind-map
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
+
+1. install =graphviz= package first.
+   #+begin_src shell :results output :file: temp.sh
+brew install graphviz
+   #+end_src
+
+2. install =org-mind-map=.
+   #+begin_src emacs-lisp
+(use-package org-mind-map
+  :ensure t
+  :after org
+  :init
+  (require 'ox-org)
+  ;; Uncomment the below if 'ensure-system-packages` is installed
+  ;;:ensure-system-package (gvgen . graphviz)
+  :config
+  (setq org-mind-map-engine "dot")       ; Default. Directed Graph
+  ;; (setq org-mind-map-engine "neato")  ; Undirected Spring Graph
+  ;; (setq org-mind-map-engine "twopi")  ; Radial Layout
+  ;; (setq org-mind-map-engine "fdp")    ; Undirected Spring Force-Directed
+  ;; (setq org-mind-map-engine "sfdp")   ; Multiscale version of fdp for the layout of large graphs
+  ;; (setq org-mind-map-engine "twopi")  ; Radial layouts
+  ;; (setq org-mind-map-engine "circo")  ; Circular Layout
+  (setq org-mind-map-include-text t)
+  )
+   #+end_src
+**** org-opml
+#+begin_src emacs-lisp
+(use-package org-opml
+  :quelpa ((org-opml :fetcher github
+                     :repo "org-opml/org-opml")
+           ;; :upgrade t
+           )
+  ;; :load-path "~/.emacs.d/quelpa/build/org-opml"
+  )
+#+end_src
+
 *** Auto numbering settings
 #+begin_src emacs-lisp
 ;; Dynamic headlines numbering
@@ -2556,6 +2687,20 @@ Make all exported files into =exported= directory.
   (org-num-skip-footnotes t)
   (org-num-skip-unnumbered t)
   (org-num-skip-tags `(,org-archive-tag)))
+#+end_src
+*** Automatically upload image when exporting to markdown files
+#+begin_src emacs-lisp -n
+(defun upload-image-files-when-exporting-to-gfm-markdown (org &rest args)
+  "When exporting org files to gfm like markdown files, upload all images files and
+convert all links to online links"
+  (interactive)
+  (setq mdPath (concat (file-name-directory (buffer-file-name)) "exported/" (file-name-sans-extension (file-name-nondirectory (buffer-file-name))) ".md"))
+  (shell-command (concat "python /Users/randolph/iCloud/bin/python_script/auto_upload_img.py " mdPath " -noupload"))
+  )
+
+(advice-add 'org-gfm-export-to-markdown :after 'upload-image-files-when-exporting-to-gfm-markdown)
+(advice-add 'org-md-export-to-markdown :after 'upload-image-files-when-exporting-to-gfm-markdown)
+(advice-add 'org-pandoc-export-to-markdown :after 'upload-image-files-when-exporting-to-gfm-markdown)
 #+end_src
 ** Blogging via Hugo
 *** hugo preparation
@@ -2621,7 +2766,7 @@ See `org-capture-templates' for more information."
   )
 #+end_src
 ** Enhance image paste from clipboard
-Paste image from clipboard via pngpaste. Need to `brew install pngpaste' first:
+Paste image from clipboard via pngpaste. Need to ~brew install pngpaste~ first:
 #+begin_src shell -n :file-name: temp.sh
 brew install pngpaste
 #+end_src
@@ -2636,15 +2781,19 @@ brew install pngpaste
       (mkdir foldername))
 
   (setq imgName (concat "img_" (format-time-string "%Y%m%d_%H%M%S") ".png"))
-  (setq imgPath (concat (buffer-file-name) ".assets/" imgName))
+  ;; (setq imgPath (concat (buffer-file-name) ".assets/" imgName))
+  (setq imgPath (concat foldername imgName))
 
-  (setq relativeFilename (concat "./"
-                                 (buffer-name) ".assets/" imgName))
+  ;; should not use relativePath, because when export, image will not be shown.
+  ;; (setq relativeFilename (concat "./"
+                                 ;; (buffer-name) ".assets/" imgName))
 
-  (shell-command (concat "pngpaste " relativeFilename))
+  ;; (shell-command (concat "pngpaste " relativeFilename))
+  (shell-command (concat "pngpaste " imgPath))
 
-  (insert (concat "[[" relativeFilename "]]"))
-  ;; (org-display-inline-images)
+  ;; (insert (concat "[[" relativeFilename "]]"))
+  (insert (concat "[[" imgPath "]]"))
+  (org-display-inline-images)
   )
 ;; use Command-V to paste image from clipboard
 (define-key org-mode-map (kbd "s-V") 'my-org-insert-clipboard-image)
@@ -2888,7 +3037,7 @@ Do presentation with org mode inside Emacs program.
     )
 
   (defun my/org-end-presentation ()
-    (interactive)
+    ;; (interactive)
     (text-scale-mode 0)
     (org-tree-slide-mode 0)
     )
@@ -2967,6 +3116,9 @@ See [[https://leanpub.com/lit-config/read#leanpub-auto-configuring-emacs-and--or
 | C-c C-x . | org-timer: insert a relative timer to the buffer                    |
 | C-c C-x , | org-timer-pause-or-continue: pause/continue the timer               |
 | C-c C-x _ | org-timer-stop: stop the timer                                      |
+|-----------+---------------------------------------------------------------------|
+| C-c C-l   | display detailed link when point is over an existing link           |
+
 *** Rich text
 #+begin_example
 *bold*
@@ -2998,7 +3150,7 @@ Use ~M-<arrow>~ to moving things such as:
 *** crypt
 Use ~:crypt:~ tag to gpg-encrypted content on saving the buffer.
 *** org-table
-Use =\ vert= to input vertical bar inside a org-table cell.
+Use ~\ vert~ to input vertical bar inside a org-table cell.
 
 * Markdown settings
 #+begin_src emacs-lisp
@@ -3759,7 +3911,7 @@ Else, call `comment-or-uncomment-region' on the current line."
          )
   :config
   ;; fix =void-function lsp-diagnostics-lsp-checker-if-needed= error.
-  (require 'lsp-diagnostics)
+  ;; (require 'lsp-diagnostics)
   )
 #+end_src
 *** lsp ui
@@ -3880,8 +4032,11 @@ Abandoned, because lsp-mode already support with company-capf.
     ))
 #+end_src
 *** enable lsp mode in babel src block
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
 
-Abandoned, lsp mode has an official function lsp-org to support this.
+Lsp mode has an official function =lsp-org= to support this.
 #+begin_src emacs-lisp
 ;; Enable LSP in org babel (method 1)
 ;; https://github.com/emacs-lsp/lsp-mode/issues/377
@@ -3954,7 +4109,8 @@ pip install "ptvsd>=4.2"
 (use-package python
   :ensure nil
   :mode ("\\.py\\'" . python-mode)
-  :hook (inferior-python-mode . my/buffer-auto-close)
+  :hook ((inferior-python-mode . my/buffer-auto-close)
+         (python-mode . display-line-numbers-mode))
   :init
   ;; Disable readline based native completion
   (setq python-shell-completion-native-enable nil)
@@ -4054,6 +4210,7 @@ Conda settings:
 #+begin_src emacs-lisp -n
 (use-package conda
   :ensure t
+  :defer t
   :config
   ;; if you want interactive shell support, include:
   (conda-env-initialize-interactive-shells)
@@ -4093,7 +4250,7 @@ For jupyter-notebook.
 #+begin_src emacs-lisp
 (use-package jupyter
   :ensure t
-  ;; :defer 12
+  :defer t
   :after org
   ;; :bind
   ;; (:map jupyter-repl-mode-map
@@ -4107,6 +4264,7 @@ For jupyter-notebook.
   ;;       ("C-?" . jupyter-inspect-at-point)
   ;;       )
   :init
+  ;; fix org babel for jupyter
   (add-hook 'org-mode-hook 'org-babel-jupyter-aliases-from-kernelspecs)
   (setq org-babel-default-header-args:jupyter-python '((:async . "yes")
                                                        (:session . "py"))))
@@ -4375,13 +4533,13 @@ npm i -g vscode-html-languageserver-bin
 * EAF settings
 EAF: Emacs Application Framework.
 ** download EAF
-1. Via =quelpa=:
+1. Via =quelpa= :
    #+begin_src emacs-lisp
 ;; (quelpa '(eaf :fetcher github
 ;;               :repo  "manateelazycat/emacs-application-framework"
 ;;               :files ("*")))
    #+end_src
-2. Via git
+2. Via =git= :
    #+begin_src shell -n :file-name: temp.sh
 git clone --depth=1 -b master https://github.com/manateelazycat/emacs-application-framework.git ~/.emacs.d/lisp/eaf/
    #+end_src
@@ -4408,8 +4566,11 @@ npm install
 ** EAF settings
 #+begin_src emacs-lisp
 (use-package eaf
-  ;; :ensure t
-  ;; :quelpa (eaf :fetcher github :repo "manateelazycat/emacs-application-framework")
+  :quelpa ((eaf :fetcher github
+                :repo "manateelazycat/emacs-application-framework"
+                :files ("*"))
+                ; :upgrade t
+                )
   :load-path "~/.emacs.d/quelpa/build/eaf"
   :init
   (use-package epc :defer t :ensure t)
@@ -4433,7 +4594,8 @@ npm install
   (eaf-bind-key scroll_up "C-n" eaf-pdf-viewer-keybinding)
   (eaf-bind-key scroll_down "C-p" eaf-pdf-viewer-keybinding)
   (eaf-bind-key take_photo "p" eaf-camera-keybinding)
-  (eaf-bind-key nil "M-q" eaf-browser-keybinding)) ;; unbind, see more in the Wiki
+  (eaf-bind-key nil "M-q" eaf-browser-keybinding) ;; unbind, see more in the Wiki
+  )
 
 #+end_src
 ** EAF tips
@@ -4790,6 +4952,9 @@ npm install
   (smptmail-stream-type 'ssl))
 #+end_src
 * MU4E settings
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
 ** Dependencies
 Install =isync= and =mu=:
 #+begin_src shell -n :file-name: temp.sh
@@ -4971,40 +5136,40 @@ mu index
                '("ViewInBrowser" . mu4e-action-view-in-browser) t)
   (setq mu4e-contexts
         (list
-         (make-mu4e-context
-          :name "midea"
-          :enter-func (lambda () (mu4e-message "Entering context midea"))
-          :leave-func (lambda () (mu4e-message "Leaving context midea"))
-          :match-func
-          (lambda (msg)
-            (when msg
-              (string-match "midea" (mu4e-message-field msg :maildir))))
-          :vars '((mu4e-sent-folder . "/midea/Sent Mail")
-                  (mu4e-drafts-folder . "/midea/Drafts")
-                  (mu4e-trash-folder . "/midea/Trash")
-                  (mu4e-sent-messages-behavior . sent)
-                  ;; (mu4e-compose-signature . user-full-name)
-                  (mu4e-compose-signature . "Best Regards,\n黄孝江 产品经理\n美的集团智能化创新中心")
-                  (user-mail-address . "huangxj73@midea.com") ; Prerequisite: Set this to your email
-                  (mu4e-compose-format-flowed . t)
-                  (smtpmail-queue-dir . "~/Mail/midea/queue/cur")
-                  (message-send-mail-function . smtpmail-send-it)
-                  (smtpmail-smtp-user . "huangxj73@midea.com") ; Set to your username
-                  ;; (smtpmail-starttls-credentials . (("smtp.midea.com" 587 nil nil)))
-                  ;; (smtpmail-auth-credentials . (expand-file-name "~/.authinfo.gpg"))
-                  ;; (smtpmail-default-smtp-server . "smtp.midea.com")
-                  (smtpmail-smtp-server . "smtp.midea.com")
-                  (smtpmail-smtp-service . 465)
-                  (smtpmail-stream-type . ssl)
-                  (smtpmail-debug-info . t)
-                  (smtpmail-debug-verbose . t)
-                  (mu4e-maildir-shortcuts . ( ("/midea/INBOX"            . ?i)
-                                              ("/midea/Sent Mail" . ?s)
-                                              ("/midea/Trash"       . ?t)
-                                              ;; ("/midea/All Mail"  . ?a)
-                                              ;; ("/midea/Starred"   . ?r)
-                                              ;; ("/midea/Drafts"    . ?d)
-                                              ))))
+         ;; (make-mu4e-context
+         ;;  :name "midea"
+         ;;  :enter-func (lambda () (mu4e-message "Entering context midea"))
+         ;;  :leave-func (lambda () (mu4e-message "Leaving context midea"))
+         ;;  :match-func
+         ;;  (lambda (msg)
+         ;;    (when msg
+         ;;      (string-match "midea" (mu4e-message-field msg :maildir))))
+         ;;  :vars '((mu4e-sent-folder . "/midea/Sent Mail")
+         ;;          (mu4e-drafts-folder . "/midea/Drafts")
+         ;;          (mu4e-trash-folder . "/midea/Trash")
+         ;;          (mu4e-sent-messages-behavior . sent)
+         ;;          ;; (mu4e-compose-signature . user-full-name)
+         ;;          (mu4e-compose-signature . "Best Regards,\n黄孝江 产品经理\n美的集团智能化创新中心")
+         ;;          (user-mail-address . "huangxj73@midea.com") ; Prerequisite: Set this to your email
+         ;;          (mu4e-compose-format-flowed . t)
+         ;;          (smtpmail-queue-dir . "~/Mail/midea/queue/cur")
+         ;;          (message-send-mail-function . smtpmail-send-it)
+         ;;          (smtpmail-smtp-user . "huangxj73@midea.com") ; Set to your username
+         ;;          ;; (smtpmail-starttls-credentials . (("smtp.midea.com" 587 nil nil)))
+         ;;          ;; (smtpmail-auth-credentials . (expand-file-name "~/.authinfo.gpg"))
+         ;;          ;; (smtpmail-default-smtp-server . "smtp.midea.com")
+         ;;          (smtpmail-smtp-server . "smtp.midea.com")
+         ;;          (smtpmail-smtp-service . 465)
+         ;;          (smtpmail-stream-type . ssl)
+         ;;          (smtpmail-debug-info . t)
+         ;;          (smtpmail-debug-verbose . t)
+         ;;          (mu4e-maildir-shortcuts . ( ("/midea/INBOX"            . ?i)
+         ;;                                      ("/midea/Sent Mail" . ?s)
+         ;;                                      ("/midea/Trash"       . ?t)
+         ;;                                      ;; ("/midea/All Mail"  . ?a)
+         ;;                                      ;; ("/midea/Starred"   . ?r)
+         ;;                                      ;; ("/midea/Drafts"    . ?d)
+         ;;                                      ))))
          (make-mu4e-context
           :name "126"
           :enter-func (lambda () (mu4e-message "Entering context 126"))
