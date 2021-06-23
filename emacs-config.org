@@ -840,7 +840,7 @@ If we encounter some coding system issues in a file, refer to following tips:
   :ensure nil
   :hook (after-init . global-auto-revert-mode)
   :custom
-  (auto-revert-interval 3)
+  (auto-revert-interval 10)
   (auto-revert-avoid-polling t)
   (auto-revert-verbose nil)
   (auto-revert-remote-files t)
@@ -1835,14 +1835,14 @@ Version 2019-11-04"
   :custom-face
   (org-document-title ((t (:height 1.75 :weight bold))))
   (org-level-1 ((t (:height 1.3 :foreground "#51afef" :weight bold))))
-  (org-level-2 ((t (:height 1.3 :foreground "#C57BDB" :weight bold))))
-  (org-level-3 ((t (:height 1.3 :foreground "#a991f1" :weight bold))))
-  (org-level-4 ((t (:height 1.3 :foreground "#7cc3f3" :weight bold))))
-  (org-level-5 ((t (:height 1.3 :foreground "#d39ce3" :weight bold))))
-  (org-level-6 ((t (:height 1.3 :foreground "#a8d7f7" :weight bold))))
-  (org-level-7 ((t (:height 1.3 :foreground "#e2bded" :weight bold))))
-  (org-level-8 ((t (:height 1.3 :foreground "#dceffb" :weight bold))))
-  (org-level-9 ((t (:height 1.3 :weight bold))))
+  (org-level-2 ((t (:height 1.24 :foreground "#C57BDB" :weight bold))))
+  (org-level-3 ((t (:height 1.18 :foreground "#a991f1" :weight bold))))
+  (org-level-4 ((t (:height 1.12 :foreground "#7cc3f3" :weight bold))))
+  (org-level-5 ((t (:height 1.09 :foreground "#d39ce3" :weight bold))))
+  (org-level-6 ((t (:height 1.06 :foreground "#a8d7f7" :weight bold))))
+  (org-level-7 ((t (:height 1.03 :foreground "#e2bded" :weight bold))))
+  (org-level-8 ((t (:height 1.0 :foreground "#dceffb" :weight bold))))
+  (org-level-9 ((t (:height 1.0 :weight bold))))
   :custom
   (org-directory "~/org")
   (org-default-notes-file (expand-file-name "all-posts.org" org-directory))
@@ -2174,7 +2174,7 @@ otherwise use the subtree title."
                         ("elisp"        . emacs-lisp)
                         ("python"       . python)
                         ("jupyter-python" . python)
-                        ("ein"          . ein)
+                        ;; ("ein"          . ein)
                         ("mermaid"      . mermaid)
                         ("ocaml"        . tuareg)
                         ("shell"        . sh)
@@ -2191,7 +2191,7 @@ otherwise use the subtree title."
                               (eshell          . t)
                               (gnuplot         . t) ;; enable gnuplot to draw 2d/3d graphs
                               (ocaml           . t)
-                              (ein             . t)
+                              ;; (ein             . t)
                               (mermaid         . t)
                               (shell           . t)
                               (browser         . t)
@@ -2665,6 +2665,9 @@ brew install graphviz
   )
    #+end_src
 **** org-opml
+Once org-opml is installed and you open an OPML file, it converts the OPML to Org mode style text.
+Please see [[GitHub:org-opml/org-opml][org-opml]] for details.
+
 #+begin_src emacs-lisp
 (use-package org-opml
   :quelpa ((org-opml :fetcher github
@@ -2773,7 +2776,8 @@ brew install pngpaste
 
 #+begin_src emacs-lisp
 (defun my-org-insert-clipboard-image ()
-  "create a time stamped unique-named file from the clipboard in the sub-directory (%filename.assets) as the org-buffer and insert a link to this file."
+  "create a time stamped unique-named file from the clipboard in the sub-directory
+ (%filename.assets) as the org-buffer and insert a link to this file."
   (interactive)
 
   (setq foldername (concat (buffer-file-name) ".assets/"))
@@ -4231,6 +4235,9 @@ Conda settings:
 #+end_src
 
 ** EIN settings
+:PROPERTIES:
+:header-args:    :tangle no
+:END:
 For jupyter-notebook.
 #+begin_src emacs-lisp
 (use-package ein
@@ -5136,40 +5143,6 @@ mu index
                '("ViewInBrowser" . mu4e-action-view-in-browser) t)
   (setq mu4e-contexts
         (list
-         ;; (make-mu4e-context
-         ;;  :name "midea"
-         ;;  :enter-func (lambda () (mu4e-message "Entering context midea"))
-         ;;  :leave-func (lambda () (mu4e-message "Leaving context midea"))
-         ;;  :match-func
-         ;;  (lambda (msg)
-         ;;    (when msg
-         ;;      (string-match "midea" (mu4e-message-field msg :maildir))))
-         ;;  :vars '((mu4e-sent-folder . "/midea/Sent Mail")
-         ;;          (mu4e-drafts-folder . "/midea/Drafts")
-         ;;          (mu4e-trash-folder . "/midea/Trash")
-         ;;          (mu4e-sent-messages-behavior . sent)
-         ;;          ;; (mu4e-compose-signature . user-full-name)
-         ;;          (mu4e-compose-signature . "Best Regards,\n黄孝江 产品经理\n美的集团智能化创新中心")
-         ;;          (user-mail-address . "huangxj73@midea.com") ; Prerequisite: Set this to your email
-         ;;          (mu4e-compose-format-flowed . t)
-         ;;          (smtpmail-queue-dir . "~/Mail/midea/queue/cur")
-         ;;          (message-send-mail-function . smtpmail-send-it)
-         ;;          (smtpmail-smtp-user . "huangxj73@midea.com") ; Set to your username
-         ;;          ;; (smtpmail-starttls-credentials . (("smtp.midea.com" 587 nil nil)))
-         ;;          ;; (smtpmail-auth-credentials . (expand-file-name "~/.authinfo.gpg"))
-         ;;          ;; (smtpmail-default-smtp-server . "smtp.midea.com")
-         ;;          (smtpmail-smtp-server . "smtp.midea.com")
-         ;;          (smtpmail-smtp-service . 465)
-         ;;          (smtpmail-stream-type . ssl)
-         ;;          (smtpmail-debug-info . t)
-         ;;          (smtpmail-debug-verbose . t)
-         ;;          (mu4e-maildir-shortcuts . ( ("/midea/INBOX"            . ?i)
-         ;;                                      ("/midea/Sent Mail" . ?s)
-         ;;                                      ("/midea/Trash"       . ?t)
-         ;;                                      ;; ("/midea/All Mail"  . ?a)
-         ;;                                      ;; ("/midea/Starred"   . ?r)
-         ;;                                      ;; ("/midea/Drafts"    . ?d)
-         ;;                                      ))))
          (make-mu4e-context
           :name "126"
           :enter-func (lambda () (mu4e-message "Entering context 126"))
